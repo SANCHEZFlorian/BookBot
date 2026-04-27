@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>BookBot - Overlay Timer</title>
+    <link rel="stylesheet" href="/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        /* Surcharge pour le timer seul */
+        body { margin: 0; padding: 0; overflow: hidden; background: transparent; }
+        .sprint-container {
+            display: inline-flex;
+            margin: 0;
+            padding: 8px 15px;
+            font-size: 1.2rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
+        .sprint-label { font-size: 1rem; margin-right: 15px; }
+        .sprint-timer { font-size: 1.5rem; }
+    </style>
+</head>
+<body>
+    <div class="sprint-container hidden" id="sprint-container">
+        <div class="sprint-label" id="sprint-label">⏱️ Sprint</div>
+        <div class="sprint-timer" id="sprint-timer">00:00</div>
+    </div>
+
+    <script>
+        const USER_ID = window.location.pathname.split('/').pop();
+        let countdownInterval = null;
+        let currentRemainingMs = 0;
+
+        function formatTime(ms) {
+            if (ms <= 0) return "00:00";
+            const totalSeconds = Math.floor(ms / 1000);
+            return `${Math.floor(totalSeconds / 60).toString().padStart(2, '0')}:${(totalSeconds % 60).toString().padStart(2, '0')}`;
+        }
+
+        async function fetchTimer() {
+            try {
+                const res = await fetch(`/api/overlay/timer/${USER_ID}`);
+                const data = await res.json();
+                const container = document.getElementById('sprint-container');
+                const label = document.getElementById('sprint-label');
+                const timerText = document.getElementById('sprint-timer');
+
+                if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
+
+                if (data.isActive) {
+                    container.classList.remove('hidden');
+                    label.innerText = "⏱️ Sprint en cours";
+                    container.style.borderColor = "rgba(212, 168, 83, 0.8)";
+                    
+                    currentRemainingMs = data.remainingMs;
+                    timerText.innerText = formatTime(currentRemainingMs);
+                    
+                    countdownInterval = setInterval(() => {
+                        currentRemainingMs -= 1000;
+                        if (currentRemainingMs <= 0) {
+                            clearInterval(countdownInterval);
+                            timerText.innerText = "00:00";
+                            fetchTimer();
+                        } else {
+                            timerText.innerText = formatTime(currentRemainingMs);
+                        }
+                    }, 1000);
+                } else if (data.isBreak) {
+                    container.classList.remove('hidden');
+                    label.innerText = "☕ Pause";
+                    timerText.innerText = "--:--";
+                    container.style.borderColor = "rgba(122, 158, 126, 0.8)";
+                } else {
+                    container.classList.add('hidden');
+                }
+            } catch (e) {}
+        }
+        setInterval(fetchTimer, 5000);
+        fetchTimer();
+    </script>
+</body>
+</html>

@@ -1,0 +1,135 @@
+-- =============================================
+-- BookBot — Schéma de Base de Données MySQL
+-- =============================================
+
+SET FOREIGN_KEY_CHECKS = 0;
+
+-- ----------------------------
+-- Configuration par serveur
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS guilds (
+    guild_id            VARCHAR(20)  NOT NULL,
+    guild_name          VARCHAR(100) DEFAULT NULL,
+    session_channel_id  VARCHAR(20)  DEFAULT NULL,
+    announce_channel_id VARCHAR(20)  DEFAULT NULL,
+    voice_hub_id        VARCHAR(20)  DEFAULT NULL,
+    voice_category_id   VARCHAR(20)  DEFAULT NULL,
+    log_msg_id          VARCHAR(20)  DEFAULT NULL,
+    log_voice_id        VARCHAR(20)  DEFAULT NULL,
+    log_member_id       VARCHAR(20)  DEFAULT NULL,
+    reviews_channel_id  VARCHAR(20)  DEFAULT NULL,
+    reader_role_id      VARCHAR(20)  DEFAULT NULL,
+    music_volume        INT          NOT NULL DEFAULT 50,
+    created_at          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (guild_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ----------------------------
+-- Utilisateurs
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS users (
+    user_id         VARCHAR(20)  NOT NULL,
+    display_name    VARCHAR(100) DEFAULT NULL,
+    livraddict_url  VARCHAR(500) DEFAULT NULL,
+    total_pages_read INT         NOT NULL DEFAULT 0,
+    level_id        INT          NOT NULL DEFAULT 1,
+    created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ----------------------------
+-- Bibliothèque / PAL (Globale)
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS books (
+    id              INT          NOT NULL AUTO_INCREMENT,
+    user_id         VARCHAR(20)  NOT NULL,
+    google_book_id  VARCHAR(100) DEFAULT NULL,
+    title           VARCHAR(300) NOT NULL,
+    author          VARCHAR(200) DEFAULT NULL,
+    cover_url       TEXT         DEFAULT NULL,
+    total_pages     INT          DEFAULT NULL,
+    current_page    INT          NOT NULL DEFAULT 0,
+    status          ENUM('to_read','reading','read','abandoned') NOT NULL DEFAULT 'to_read',
+    is_current      TINYINT(1)   NOT NULL DEFAULT 0,
+    notes           TEXT         DEFAULT NULL,
+    added_at        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    started_at      TIMESTAMP    NULL DEFAULT NULL,
+    finished_at     TIMESTAMP    NULL DEFAULT NULL,
+    PRIMARY KEY (id),
+    KEY idx_user_status (user_id, status),
+    KEY idx_user_current (user_id, is_current)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ----------------------------
+-- Avis et Chroniques (Globale)
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS book_reviews (
+    id              INT          NOT NULL AUTO_INCREMENT,
+    user_id         VARCHAR(20)  NOT NULL,
+    google_book_id  VARCHAR(100) NOT NULL,
+    book_title      VARCHAR(300) DEFAULT NULL,
+    rating          INT          NOT NULL DEFAULT 5,
+    comment         TEXT         DEFAULT NULL,
+    created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_book (google_book_id),
+    KEY idx_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ----------------------------
+-- Sessions de lecture
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS sessions (
+    id              INT          NOT NULL AUTO_INCREMENT,
+    guild_id        VARCHAR(20)  NOT NULL,
+    started_by      VARCHAR(20)  NOT NULL,
+    sprint_minutes  INT          NOT NULL DEFAULT 45,
+    break_minutes   INT          NOT NULL DEFAULT 15,
+    status          ENUM('active','break','ended') NOT NULL DEFAULT 'active',
+    message_id      VARCHAR(20)  DEFAULT NULL,
+    channel_id      VARCHAR(20)  DEFAULT NULL,
+    started_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ended_at        TIMESTAMP    NULL DEFAULT NULL,
+    PRIMARY KEY (id),
+    KEY idx_guild_status (guild_id, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ----------------------------
+-- Scores des sessions
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS session_scores (
+    id              INT          NOT NULL AUTO_INCREMENT,
+    session_id      INT          NOT NULL,
+    user_id         VARCHAR(20)  NOT NULL,
+    pages_read      INT          NOT NULL DEFAULT 0,
+    submitted_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_session_user (session_id, user_id),
+    FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ----------------------------
+-- Niveaux de lecture
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS reading_levels (
+    id              INT          NOT NULL AUTO_INCREMENT,
+    name            VARCHAR(50)  NOT NULL,
+    emoji           VARCHAR(10)  NOT NULL,
+    min_pages       INT          NOT NULL DEFAULT 0,
+    color           VARCHAR(7)   NOT NULL DEFAULT '#D4A853',
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Données de référence des niveaux
+INSERT INTO reading_levels (id, name, emoji, min_pages, color) VALUES
+(1, 'Novice',           '📖', 0,     '#8B7355'),
+(2, 'Apprenti Lecteur', '✨', 100,   '#D4A853'),
+(3, 'Lecteur Assidu',   '🌿', 500,   '#7A9E7E'),
+(4, 'Bibliophile',      '🔖', 1500,  '#C8A2C8'),
+(5, 'Érudit',           '🦉', 3500,  '#5B8DD9'),
+(6, 'Sage des Livres',  '📜', 7500,  '#9B59B6'),
+(7, 'Grand Sage',       '✨', 15000, '#FFD700')
+ON DUPLICATE KEY UPDATE name=VALUES(name);
+
+SET FOREIGN_KEY_CHECKS = 1;
+

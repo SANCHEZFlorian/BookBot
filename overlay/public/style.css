@@ -1,0 +1,164 @@
+:root {
+    --primary: #D4A853; /* Ambre */
+    --primary-glow: rgba(212, 168, 83, 0.4);
+    --secondary: #7A9E7E; /* Sauge */
+    --dark: #2C1A0E;
+    --darker: #1A0F08;
+    --light: #F5E6C8;
+    --text-main: #EAE0C8;
+    --text-muted: #B8A88A;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Inter', sans-serif;
+    background-color: transparent; /* Transparent pour OBS */
+    color: var(--text-main);
+    overflow: hidden; /* Pas de scrollbar dans OBS */
+}
+
+.overlay-container {
+    display: flex;
+    align-items: center;
+    background: linear-gradient(135deg, rgba(44, 26, 14, 0.95) 0%, rgba(26, 15, 8, 0.95) 100%);
+    border: 2px solid var(--primary);
+    border-radius: 12px;
+    padding: 15px;
+    width: 450px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(212, 168, 83, 0.1);
+    position: relative;
+    /* Texture grain léger (Optionnel) */
+    background-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><filter id="noiseFilter"><feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23noiseFilter)" opacity="0.05"/></svg>');
+}
+
+.book-cover-wrapper {
+    flex-shrink: 0;
+    width: 90px;
+    height: 135px;
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
+    margin-right: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#book-cover {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.book-info {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0; /* Important pour truncate le texte */
+}
+
+.reading-now {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--primary);
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+#book-title {
+    font-family: 'Lora', serif;
+    font-size: 1.3rem;
+    font-weight: 600;
+    margin: 0 0 2px 0;
+    color: var(--light);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#book-author {
+    font-family: 'Lora', serif;
+    font-style: italic;
+    font-size: 0.95rem;
+    font-weight: 400;
+    margin: 0 0 12px 0;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* --- Progress Bar --- */
+.progress-container {
+    width: 100%;
+    margin-bottom: 8px;
+}
+
+.progress-stats {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+
+#percent-text {
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.progress-bar-bg {
+    width: 100%;
+    height: 8px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #B5883B, var(--primary));
+    width: 0%;
+    border-radius: 4px;
+    transition: width 0.5s ease-out;
+    box-shadow: 0 0 10px var(--primary-glow);
+}
+
+/* --- Sprint Timer --- */
+.sprint-container {
+    margin-top: 10px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(212, 168, 83, 0.3);
+    border-radius: 6px;
+    padding: 6px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    animation: pulseBorder 2s infinite;
+}
+
+.sprint-label {
+    font-size: 0.8rem;
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.sprint-timer {
+    font-family: monospace;
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #fff;
+    text-shadow: 0 0 5px var(--primary-glow);
+}
+
+.hidden {
+    display: none !important;
+}
+
+@keyframes pulseBorder {
+    0% { border-color: rgba(212, 168, 83, 0.2); }
+    50% { border-color: rgba(212, 168, 83, 0.8); }
+    100% { border-color: rgba(212, 168, 83, 0.2); }
+}

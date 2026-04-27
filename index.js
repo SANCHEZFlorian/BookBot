@@ -1,0 +1,55 @@
+import { Client, GatewayIntentBits, Collection, Partials } from 'discord.js';
+import dotenv from 'dotenv';
+import { initDatabase } from './config/database.js';
+import { loadCommands } from './loader/commandLoader.js';
+import { loadEvents } from './loader/eventLoader.js';
+import { startOverlayServer } from './overlay/server.js';
+
+dotenv.config();
+
+// Initialisation du client Discord avec les intents nécessaires pour BookBot
+const client = new Client({
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildVoiceStates, // Indispensable pour la musique/signaux sonores
+        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildMessageReactions,
+    ],
+    partials: [Partials.Message, Partials.Channel, Partials.Reaction],
+});
+
+// Collections pour stocker les commandes
+client.commands = new Collection();
+client.commandsForRest = [];
+
+// Fonction de démarrage asynchrone
+async function startBot() {
+    try {
+        // 1. Initialiser la base de données
+        await initDatabase();
+
+        // 2. Démarrer le serveur de l'Overlay OBS
+        startOverlayServer();
+
+        // 3. Charger les événements
+        await loadEvents(client);
+
+        // 3. Charger les commandes
+        await loadCommands(client);
+
+        // 4. Lancement du bot
+        const isProd = process.env.NODE_ENV === 'production';
+        const TOKEN = isProd ? process.env.PROD_TOKEN : process.env.DEV_TOKEN;
+        
+        await client.login(TOKEN);
+    } catch (error) {
+        console.error('[FATAL] Erreur lors du démarrage du bot :', error);
+        process.exit(1);
+    }
+}
+
+startBot();
+
+export { client };

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>BookBot - Overlay Livre</title>
+    <link rel="stylesheet" href="/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="overlay-container" id="overlay-container">
+        <div class="book-cover-wrapper">
+            <img id="book-cover" src="" alt="Couverture" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'120\' height=\'180\' style=\'background:%232C1A0E\'></svg>'">
+        </div>
+        <div class="book-info">
+            <div class="reading-now">📖 Lecture en cours</div>
+            <h1 id="book-title">Chargement...</h1>
+            <h2 id="book-author">Auteur</h2>
+            <div class="progress-container" id="progress-container">
+                <div class="progress-stats">
+                    <span id="pages-text">0 / 0 pages</span>
+                    <span id="percent-text">0%</span>
+                </div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" id="progress-bar-fill"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        const BOOK_ID = window.location.pathname.split('/').pop();
+        async function fetchBook() {
+            try {
+                const res = await fetch(`/api/overlay/book/${BOOK_ID}`);
+                const data = await res.json();
+                if (data.error) return;
+
+                document.getElementById('book-title').innerText = data.title;
+                document.getElementById('book-author').innerText = data.author ? `Par ${data.author}` : '';
+                if (data.cover) document.getElementById('book-cover').src = data.cover;
+
+                if (data.totalPages) {
+                    document.getElementById('pages-text').innerText = `${data.currentPage} / ${data.totalPages} p.`;
+                    document.getElementById('percent-text').innerText = `${data.percent}%`;
+                    document.getElementById('progress-bar-fill').style.width = `${data.percent}%`;
+                } else {
+                    document.getElementById('pages-text').innerText = `Page ${data.currentPage}`;
+                    document.getElementById('percent-text').innerText = ``;
+                    document.getElementById('progress-bar-fill').style.width = `100%`;
+                }
+            } catch (e) {}
+        }
+        setInterval(fetchBook, 5000);
+        fetchBook();
+    </script>
+</body>
+</html>
