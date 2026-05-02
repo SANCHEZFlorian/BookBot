@@ -163,6 +163,13 @@ export const event = {
             else if (id === 'menu_pal_voir') {
                 await sendPalList(interaction, interaction.user, true);
             }
+            else if (id.startsWith('pal_prev_') || id.startsWith('pal_next_')) {
+                const parts = id.split('_');
+                const targetUserId = parts[2];
+                const page = parseInt(parts[3]);
+                const targetUser = await interaction.client.users.fetch(targetUserId);
+                await sendPalList(interaction, targetUser, true, page);
+            }
 
             // Rejoindre une LC
             else if (id.startsWith('btn_lc_join_')) {

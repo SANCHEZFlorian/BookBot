@@ -79,32 +79,45 @@ export async function handleAdd(interaction, query) {
     await interaction.editReply({ embeds: [embed], components: [new ActionRowBuilder().addComponents(selectMenu)] });
 }
 
-export async function sendPalList(interaction, targetUser, isUpdate = false) {
+export async function sendPalList(interaction, targetUser, isUpdate = false, page = 1) {
     if (!isUpdate && !interaction.deferred) await interaction.deferReply();
 
     try {
+        const limit = 10;
+        const offset = (page - 1) * limit;
+
         const [rows] = await db.query(
             `SELECT title, author, total_pages, current_page, status 
              FROM books WHERE user_id = ? 
-             ORDER BY CASE status WHEN 'reading' THEN 1 WHEN 'to_read' THEN 2 WHEN 'read' THEN 3 ELSE 4 END, added_at DESC LIMIT 15`,
-            [targetUser.id]
+             ORDER BY CASE status WHEN 'reading' THEN 1 WHEN 'to_read' THEN 2 WHEN 'read' THEN 3 ELSE 4 END, added_at DESC 
+             LIMIT ? OFFSET ?`,
+            [targetUser.id, limit, offset]
         );
+
+        const [countResult] = await db.query(`SELECT COUNT(*) as total FROM books WHERE user_id = ?`, [targetUser.id]);
+        const total = countResult[0].total;
+        const totalPages = Math.ceil(total / limit) || 1;
 
         if (rows.length === 0) {
             const emptyMsg = targetUser.id === interaction.user.id ? "Votre PAL est vide. Utilisez le bouton Ajouter !" : "La PAL est vide.";
-            return isUpdate ? interaction.update({ embeds: [createBaseEmbed().setDescription(emptyMsg)] }) : interaction.editReply({ embeds: [createBaseEmbed().setDescription(emptyMsg)] });
+            const emptyPayload = { embeds: [createBaseEmbed().setDescription(emptyMsg)], components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('menu_retour').setLabel('Retour').setStyle(ButtonStyle.Secondary))] };
+            return isUpdate ? interaction.update(emptyPayload) : interaction.editReply(emptyPayload);
         }
 
-        const embed = createBaseEmbed().setTitle(`📚 PAL de ${targetUser.username}`).setThumbnail(targetUser.displayAvatarURL());
-        let desc = '';
+        const embed = createBaseEmbed()
+            .setTitle(`📚 PAL de ${targetUser.username}`)
+            .setThumbnail(targetUser.displayAvatarURL())
+            .setFooter({ text: `Page ${page} / ${totalPages} • Total : ${total} livres` });
 
+        let desc = '';
         for (const book of rows) {
             const emojis = { 'reading': '🔥', 'to_read': '📖', 'read': '✅', 'abandoned': '❌' };
             desc += `**${emojis[book.status] || '📖'} ${book.title}**\n*${book.author || 'Inconnu'}*\n`;
             
             if (book.status === 'reading' && book.total_pages) {
-                const percent = Math.floor((book.current_page / book.total_pages) * 100);
-                const bar = '🟩'.repeat(Math.floor(percent/10)) + '⬜'.repeat(10 - Math.floor(percent/10));
+                const percent = Math.min(100, Math.floor((book.current_page / book.total_pages) * 100));
+                const filled = Math.floor(percent / 10);
+                const bar = '🟩'.repeat(filled) + '⬜'.repeat(10 - filled);
                 desc += `Progression : ${bar} ${percent}% (${book.current_page}/${book.total_pages})\n`;
             } else if (book.status === 'reading') {
                 desc += `Progression : Page ${book.current_page}\n`;
@@ -114,11 +127,29 @@ export async function sendPalList(interaction, targetUser, isUpdate = false) {
 
         embed.setDescription(desc);
         
-        const components = isUpdate ? [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('menu_retour').setLabel('Retour').setStyle(ButtonStyle.Secondary))] : [];
-        isUpdate ? await interaction.update({ embeds: [embed], components }) : await interaction.editReply({ embeds: [embed] });
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId(`pal_prev_${targetUser.id}_${page - 1}`)
+                .setLabel('⬅️')
+                .setStyle(ButtonStyle.Primary)
+                .setDisabled(page <= 1),
+            new ButtonBuilder()
+                .setCustomId(`pal_next_${targetUser.id}_${page + 1}`)
+                .setLabel('➡️')
+                .setStyle(ButtonStyle.Primary)
+                .setDisabled(page >= totalPages),
+            new ButtonBuilder()
+                .setCustomId('menu_retour')
+                .setLabel('Menu')
+                .setStyle(ButtonStyle.Secondary)
+        );
+
+        const payload = { embeds: [embed], components: [row] };
+        isUpdate ? await interaction.update(payload) : await interaction.editReply(payload);
     } catch (err) {
         console.error(err);
-        isUpdate ? interaction.update({ content: 'Erreur.' }) : interaction.editReply({ content: 'Erreur.' });
+        const errorPayload = { content: 'Erreur lors de la récupération de la PAL.', ephemeral: true };
+        isUpdate ? interaction.update(errorPayload) : interaction.editReply(errorPayload);
     }
 }
 
@@ -234,6 +265,7 @@ export async function handleImport(interaction) {
             return interaction.editReply({ embeds: [createErrorEmbed('Aucun livre trouvé.')] });
         }
 
+        // 3. Insertion en BDD avec recherche Google Books
         await db.query(`INSERT IGNORE INTO users (user_id, display_name) VALUES (?, ?)`, [userId, interaction.user.username]);
         
         let count = 0;
@@ -241,11 +273,25 @@ export async function handleImport(interaction) {
             try {
                 const [existing] = await db.query(`SELECT id FROM books WHERE user_id = ? AND title = ?`, [userId, b.title]);
                 if (existing.length === 0) {
+                    // Recherche ID Google pour lier les métadonnées
+                    let googleId = null;
+                    const searchResults = await searchBook(`${b.title} ${b.author}`);
+                    if (searchResults && searchResults.length > 0) {
+                        const bestMatch = searchResults[0];
+                        googleId = bestMatch.id;
+                        // On privilégie la couverture Google si celle de Livraddict est de mauvaise qualité
+                        if (!b.coverUrl && bestMatch.coverUrl) b.coverUrl = bestMatch.coverUrl;
+                        if (!b.totalPages && bestMatch.pageCount) b.totalPages = bestMatch.pageCount;
+                    }
+
                     await db.query(
-                        `INSERT INTO books (user_id, title, author, cover_url, total_pages, status) VALUES (?, ?, ?, ?, ?, 'to_read')`,
-                        [userId, b.title, b.author, b.coverUrl, b.totalPages]
+                        `INSERT INTO books (user_id, title, author, cover_url, total_pages, status, google_book_id) VALUES (?, ?, ?, ?, ?, 'to_read', ?)`,
+                        [userId, b.title, b.author, b.coverUrl, b.totalPages, googleId]
                     );
                     count++;
+                    
+                    // Délai pour ne pas spammer l'API Google
+                    await new Promise(r => setTimeout(r, 300));
                 }
             } catch (dbErr) {
                 console.error(`[Import PAL] Erreur BDD pour "${b.title}":`, dbErr.message);
