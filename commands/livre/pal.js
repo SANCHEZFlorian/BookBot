@@ -2,6 +2,8 @@ import { SlashCommandBuilder, ActionRowBuilder, StringSelectMenuBuilder, StringS
 import { searchBook } from '../../services/bookApiService.js';
 import db from '../../config/database.js';
 import { createBaseEmbed, createSuccessEmbed, createErrorEmbed } from '../../utils/embedBuilder.js';
+import fetch from 'node-fetch';
+import * as cheerio from 'cheerio';
 
 export const command = {
     data: new SlashCommandBuilder()
@@ -20,6 +22,16 @@ export const command = {
         .addSubcommand(subcmd => 
             subcmd.setName('retirer')
                   .setDescription('Retire un livre de votre PAL')
+        )
+        .addSubcommand(subcmd => 
+            subcmd.setName('link')
+                  .setDescription('Lier votre PAL (Livraddict ou autre) à votre profil')
+                  .addStringOption(opt => opt.setName('url').setDescription('Lien vers votre PAL').setRequired(true))
+        )
+        .addSubcommand(subcmd => 
+            subcmd.setName('import')
+                  .setDescription('Importer des livres depuis votre PAL Livraddict')
+                  .addStringOption(opt => opt.setName('url').setDescription('Lien de votre PAL Livraddict (doit finir par ?goto=pal)').setRequired(true))
         ),
 
     async execute(interaction) {
@@ -32,6 +44,10 @@ export const command = {
             await sendPalList(interaction, targetUser);
         } else if (subcmd === 'retirer') {
             await handleRemove(interaction);
+        } else if (subcmd === 'link') {
+            await handleLink(interaction);
+        } else if (subcmd === 'import') {
+            await handleImport(interaction);
         }
     }
 };
@@ -122,5 +138,77 @@ export async function handleRemove(interaction) {
         await interaction.editReply({ embeds: [embed], components: [new ActionRowBuilder().addComponents(selectMenu)] });
     } catch (err) {
         console.error(err);
+    }
+}
+
+export async function handleLink(interaction) {
+    const url = interaction.options.getString('url');
+    const userId = interaction.user.id;
+
+    try {
+        await db.query(`INSERT IGNORE INTO users (user_id, display_name) VALUES (?, ?)`, [userId, interaction.user.username]);
+        await db.query(`UPDATE users SET pal_url = ? WHERE user_id = ?`, [url, userId]);
+        await interaction.reply({ embeds: [createSuccessEmbed(`Lien vers votre PAL mis à jour :\n${url}`)], ephemeral: true });
+    } catch (err) {
+        console.error(err);
+        await interaction.reply({ embeds: [createErrorEmbed('Une erreur est survenue.')], ephemeral: true });
+    }
+}
+
+export async function handleImport(interaction) {
+    await interaction.deferReply({ ephemeral: true });
+    const url = interaction.options.getString('url');
+    const userId = interaction.user.id;
+
+    if (!url.includes('livraddict.com/') || !url.includes('goto=pal')) {
+        return interaction.editReply({ embeds: [createErrorEmbed('URL invalide. Elle doit provenir de Livraddict et contenir `?goto=pal`.')] });
+    }
+
+    try {
+        const response = await fetch(url, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36' }
+        });
+        const html = await response.text();
+        const $ = cheerio.load(html);
+        const books = [];
+
+        $('.livre_con').each((i, el) => {
+            const title = $(el).find('a[href*="/biblio/livre/"]').first().text().trim();
+            const author = $(el).find('a[href*="/biblio/auteur/"]').first().text().trim();
+            const coverUrl = $(el).find('img[src*="/couv/"]').attr('src');
+            
+            // Extraction des pages dans le texte des infos
+            const infosText = $(el).find('.infos').text();
+            const pagesMatch = infosText.match(/(\d+)\s*pages/);
+            const totalPages = pagesMatch ? parseInt(pagesMatch[1]) : null;
+
+            if (title) {
+                books.push({ title, author, coverUrl, totalPages });
+            }
+        });
+
+        if (books.length === 0) {
+            return interaction.editReply({ embeds: [createErrorEmbed('Aucun livre trouvé sur cette page. Vérifiez que votre profil est public.')] });
+        }
+
+        // Insertion en BDD
+        await db.query(`INSERT IGNORE INTO users (user_id, display_name) VALUES (?, ?)`, [userId, interaction.user.username]);
+        
+        let count = 0;
+        for (const b of books) {
+            const [existing] = await db.query(`SELECT id FROM books WHERE user_id = ? AND title = ?`, [userId, b.title]);
+            if (existing.length === 0) {
+                await db.query(
+                    `INSERT INTO books (user_id, title, author, cover_url, total_pages, status) VALUES (?, ?, ?, ?, ?, 'to_read')`,
+                    [userId, b.title, b.author, b.coverUrl, b.totalPages]
+                );
+                count++;
+            }
+        }
+
+        await interaction.editReply({ embeds: [createSuccessEmbed(`Importation terminée ! **${count}** nouveaux livres ajoutés à votre PAL.`)] });
+    } catch (err) {
+        console.error('[Import PAL] Erreur:', err);
+        await interaction.editReply({ embeds: [createErrorEmbed('Une erreur est survenue lors du scraping.')] });
     }
 }

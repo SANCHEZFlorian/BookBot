@@ -14,70 +14,69 @@ export const command = {
             .setDescription('Bienvenue sur **BookBot** ! L\'assistant parfait pour les lecteurs et les streameurs littéraires.\n\nUtilisez le menu déroulant ci-dessous pour explorer les différentes fonctionnalités du bot.')
             .setThumbnail(interaction.client.user.displayAvatarURL());
 
-        const selectMenu = new StringSelectMenuBuilder()
-            .setCustomId('help_menu')
-            .setPlaceholder('Choisissez un sujet à explorer...')
-            .addOptions(
-                new StringSelectMenuOptionBuilder().setLabel('Le Menu Global').setValue('help_menu_global').setEmoji('🎛️').setDescription('L\'outil central pour tout gérer'),
-                new StringSelectMenuOptionBuilder().setLabel('La Pile à Lire (PAL)').setValue('help_pal').setEmoji('📚').setDescription('Gérer vos livres et progressions'),
-                new StringSelectMenuOptionBuilder().setLabel('Sprints de Lecture').setValue('help_sprints').setEmoji('⏱️').setDescription('Lire ensemble avec un chronomètre'),
-                new StringSelectMenuOptionBuilder().setLabel('Niveaux & Profil').setValue('help_profil').setEmoji('🏆').setDescription('Gagner de l\'XP en lisant'),
-                new StringSelectMenuOptionBuilder().setLabel('Outils Streamer').setValue('help_stream').setEmoji('🎥').setDescription('Overlay OBS et annonces'),
-                new StringSelectMenuOptionBuilder().setLabel('Musique & Ambiance').setValue('help_musique').setEmoji('🎵').setDescription('Radios Lofi et Jazz')
-            );
+        const row = new ActionRowBuilder().addComponents(
+            new StringSelectMenuBuilder()
+                .setCustomId('select_help')
+                .setPlaceholder('Choisissez une catégorie')
+                .addOptions(
+                    new StringSelectMenuOptionBuilder().setLabel('Commandes Générales').setValue('help_general').setEmoji('🌐').setDescription('Profil, aide, menu global'),
+                    new StringSelectMenuOptionBuilder().setLabel('Gestion de Livres').setValue('help_books').setEmoji('📚').setDescription('Ajouter, modifier, suivre vos lectures'),
+                    new StringSelectMenuOptionBuilder().setLabel('Sessions de Lecture').setValue('help_sessions').setEmoji('⏱️').setDescription('Lire ensemble avec un chronomètre'),
+                    new StringSelectMenuOptionBuilder().setLabel('Musique & Ambiance').setValue('help_music').setEmoji('🎵').setDescription('Musique Lo-Fi et sons d\'ambiance'),
+                    new StringSelectMenuOptionBuilder().setLabel('Stream & Overlay').setValue('help_stream').setEmoji('🎥').setDescription('Configuration de l\'overlay OBS'),
+                )
+        );
 
         await interaction.editReply({ 
             embeds: [embed], 
-            components: [new ActionRowBuilder().addComponents(selectMenu)] 
+            components: [row] 
         });
     },
 };
 
-// Fonction exportée pour gérer les clics du menu déroulant d'aide dans interactionCreate.js
 export async function handleHelpSelect(interaction) {
     const value = interaction.values[0];
-    let embed = createBaseEmbed();
+    const embed = createBaseEmbed();
 
-    if (value === 'help_menu_global') {
-        embed.setTitle('🎛️ Le Menu Global (`/menu`)')
-            .setDescription('La commande **`/menu`** est votre tableau de bord interactif. Elle remplace presque toutes les autres commandes !')
+    if (value === 'help_general') {
+        embed.setTitle('🌐 Commandes Générales')
             .addFields(
-                { name: 'Comment ça marche ?', value: 'Tapez simplement `/menu`. Un panneau s\'ouvre avec des boutons cliquables. Vous pouvez cliquer sur "Ma PAL" pour la voir, "Ajouter Livre" pour chercher un livre, ou "Maj Progression" pour indiquer la page que vous venez d\'atteindre.' },
-                { name: 'Avantage', value: 'Vous n\'avez plus besoin de mémoriser les commandes ! Tout se fait via des fenêtres pop-up (formulaires) directement dans Discord.' }
-            );
-    } 
-    else if (value === 'help_pal') {
-        embed.setTitle('📚 La Pile à Lire (PAL)')
-            .setDescription('Suivez l\'avancée de vos lectures en cours et votre liste de souhaits.')
-            .addFields(
-                { name: 'Multi-livres', value: 'Vous pouvez avoir plusieurs livres "en cours" en même temps. Lorsque vous mettez à jour votre progression via le `/menu`, le bot vous demandera de choisir lequel de vos livres en cours vous avez lu.' },
-                { name: 'Fini !', value: 'Si vous entrez un numéro de page supérieur ou égal au nombre total de pages du livre, il passera automatiquement dans la catégorie "Lus" !' },
-                { name: 'Commandes directes', value: '`/pal liste`, `/pal ajouter`, `/pal retirer`' }
+                { name: '`/profil`', value: 'Affiche vos stats, votre grade et votre progression.' },
+                { name: '`/menu`', value: 'Le centre de contrôle interactif du bot.' },
+                { name: '`/aide`', value: 'Affiche ce message.' }
             );
     }
-    else if (value === 'help_sprints') {
-        embed.setTitle('⏱️ Les Sprints de Lecture')
-            .setDescription('Idéal pour se motiver à lire en groupe ! Un chronomètre est lancé et tout le monde lit en même temps.')
+    else if (value === 'help_books') {
+        embed.setTitle('📚 Gestion de Livres')
             .addFields(
-                { name: 'Lancer un sprint', value: 'Allez dans `/menu` > Sprints > Lancer, ou tapez `/sprint lancer`. Une annonce est faite avec l\'heure de fin.' },
-                { name: 'Les scores', value: 'À la fin du sprint, un bouton s\'affiche. Cliquez dessus pour entrer le nombre de pages que vous avez lues pendant le temps imparti. Ces pages seront ajoutées à votre livre en cours !' },
-                { name: 'Sons (Vocal)', value: 'Si vous êtes dans un salon vocal avec le bot, une cloche retentira automatiquement au début et à la fin du sprint.' }
+                { name: '`/livre ajouter`', value: 'Ajoute un livre à votre bibliothèque (via recherche Google Books).' },
+                { name: '`/livre lire`', value: 'Définit un livre comme étant votre lecture actuelle.' },
+                { name: '`/livre progression`', value: 'Met à jour votre page actuelle.' },
+                { name: '`/livre liste`', value: 'Affiche votre PAL (Pile à Lire).' }
             );
     }
-    else if (value === 'help_profil') {
-        embed.setTitle('🏆 Niveaux et Profil')
-            .setDescription('Votre assiduité est récompensée ! Plus vous lisez, plus vous montez en grade.')
+    else if (value === 'help_sessions') {
+        embed.setTitle('⏱️ Les Sessions de Lecture')
+            .setDescription('Les sessions sont des périodes de lecture chronométrées pour rester concentré.')
             .addFields(
-                { name: 'Le profil (`/profil`)', value: 'Affiche votre nombre total de pages lues, vos livres terminés, et une jauge de progression vers votre prochain grade.' },
-                { name: 'Les Grades', value: 'Novice 📖 ➔ Apprenti Lecteur ✨ ➔ Lecteur Assidu 🌿 ➔ Bibliophile 🔖 ➔ Érudit 🦉 ➔ Sage des Livres 📜 ➔ Grand Sage ⭐' },
-                { name: 'Livraddict', value: 'Vous pouvez lier votre profil Livraddict avec `/livraddict [lien]` pour qu\'il s\'affiche sur votre fiche.' }
+                { name: 'Lancer une session', value: 'Allez dans `/menu` > Sessions > Lancer, ou tapez `/session lancer`. Une annonce est faite avec l\'heure de fin.' },
+                { name: 'Les scores', value: 'À la fin de la session, un bouton s\'affiche. Cliquez dessus pour entrer le nombre de pages que vous avez lues pendant le temps imparti. Ces pages seront ajoutées à votre livre en cours !' },
+                { name: 'Sons (Vocal)', value: 'Si vous êtes dans un salon vocal avec le bot, une cloche retentira automatiquement au début et à la fin de la session.' }
+            );
+    }
+    else if (value === 'help_music') {
+        embed.setTitle('🎵 Musique & Ambiance')
+            .addFields(
+                { name: '`/musique play`', value: 'Lance une playlist Lo-Fi ou un son spécifique.' },
+                { name: '`/musique stop`', value: 'Arrête la musique et fait quitter le bot.' },
+                { name: '`/musique volume`', value: 'Règle le volume global (0-100).' }
             );
     }
     else if (value === 'help_stream') {
         embed.setTitle('🎥 Outils pour les Streamers')
             .setDescription('Affichez vos lectures directement sur votre stream Twitch ou YouTube !')
             .addFields(
-                { name: 'L\'Overlay OBS (`/stream overlay`)', value: 'Vous donne un lien privé. Ajoutez-le en tant que "Source Navigateur" sur OBS (450x180). Il affichera la couverture de votre livre, votre progression, et même le timer du sprint en temps réel !' },
+                { name: 'L\'Overlay OBS (`/stream overlay`)', value: 'Vous donne un lien privé. Ajoutez-le en tant que "Source Navigateur" sur OBS (450x180). Il affichera la couverture de votre livre, votre progression, et même le timer de la session en temps réel !' },
                 { name: 'Livre Stream', value: 'Si vous lisez plusieurs livres, allez dans `/menu` > "Livre Stream" pour choisir lequel s\'affichera sur OBS.' },
                 { name: 'Annonces', value: '`/stream annonce` pour prévenir que vous êtes en live, et `/stream programme` pour donner rendez-vous pour une lecture commune.' }
             );

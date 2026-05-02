@@ -26,8 +26,9 @@ export async function sendProfile(interaction, targetUser, isUpdate = false) {
     try {
         await db.query(`INSERT IGNORE INTO users (user_id, display_name) VALUES (?, ?)`, [userId, targetUser.username]);
 
-        const [users] = await db.query(`SELECT livraddict_url FROM users WHERE user_id = ?`, [userId]);
+        const [users] = await db.query(`SELECT livraddict_url, pal_url FROM users WHERE user_id = ?`, [userId]);
         const livraddictUrl = users[0]?.livraddict_url;
+        const palUrl = users[0]?.pal_url;
 
         const [bookStats] = await db.query(
             `SELECT 
@@ -54,8 +55,12 @@ export async function sendProfile(interaction, targetUser, isUpdate = false) {
             .setTitle(`Profil Lecteur : ${targetUser.username}`)
             .setThumbnail(targetUser.displayAvatarURL());
 
-        if (livraddictUrl) {
-            embed.setDescription(`[🔗 Profil Livraddict](${livraddictUrl})`);
+        let links = [];
+        if (livraddictUrl) links.push(`[🔗 Profil Livraddict](${livraddictUrl})`);
+        if (palUrl) links.push(`[📚 Ma PAL](${palUrl})`);
+        
+        if (links.length > 0) {
+            embed.setDescription(links.join(' | '));
         }
 
         let gradeText = `${current.emoji} **${current.name}**\n*Total : ${levelInfo.totalPages} pages lues*`;

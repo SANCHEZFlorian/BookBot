@@ -43,18 +43,18 @@ app.get('/api/overlay/timer/:userId', async (req, res) => {
     try {
         // On récupère la session active lancée par cet utilisateur
         const [sessions] = await db.query(
-            `SELECT id, sprint_minutes, started_at, status 
+            `SELECT id, session_minutes, started_at, status 
              FROM sessions 
              WHERE started_by = ? AND status IN ('active', 'break') 
              ORDER BY started_at DESC LIMIT 1`,
             [req.params.userId]
         );
 
-        if (sessions.length === 0) return res.json({ error: 'Aucun sprint' });
+        if (sessions.length === 0) return res.json({ error: 'Aucune session' });
 
         const session = sessions[0];
         const startTime = new Date(session.started_at).getTime();
-        const endTime = startTime + (session.sprint_minutes * 60000);
+        const endTime = startTime + (session.session_minutes * 60000);
         const now = Date.now();
         
         if (now < endTime && session.status === 'active') {
@@ -62,7 +62,7 @@ app.get('/api/overlay/timer/:userId', async (req, res) => {
         } else if (session.status === 'break') {
             res.json({ isActive: false, isBreak: true });
         } else {
-            res.json({ error: 'Terminé' });
+            res.json({ error: 'Terminée' });
         }
     } catch (err) {
         console.error('[API Timer] Erreur:', err);

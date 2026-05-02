@@ -144,13 +144,13 @@ export const event = {
             }
 
             // Menu d'aide
-            else if (interaction.customId === 'help_menu') {
+            else if (interaction.customId === 'select_help') {
                 const { handleHelpSelect } = await import('../commands/general/aide.js');
                 await handleHelpSelect(interaction);
             }
         }
 
-        // --- Boutons (Menu Global & Sprints) ---
+        // --- Boutons (Menu Global & Sessions) ---
         else if (interaction.isButton()) {
             const id = interaction.customId;
 
@@ -229,35 +229,33 @@ export const event = {
                 await interaction.update({ embeds: [createBaseEmbed().setTitle('🎯 Progression').setDescription('Sélectionnez le livre lu :')], components: [new ActionRowBuilder().addComponents(selectMenu), new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('menu_retour').setLabel('Retour').setStyle(ButtonStyle.Secondary))] });
             }
 
-            // Ligne 2 : Sprints
-            else if (id === 'menu_sprint') {
-                const embed = createBaseEmbed().setTitle('⏱️ Menu Sprint').setDescription('Gérez vos sessions de lecture.');
+            // Ligne 2 : Sessions
+            else if (id === 'menu_session') {
+                const embed = createBaseEmbed().setTitle('⏱️ Menu Session').setDescription('Gérez vos sessions de lecture.');
                 const row = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder().setCustomId('btn_sprint_start').setLabel('Lancer / Configurer').setStyle(ButtonStyle.Success),
-                    new ButtonBuilder().setCustomId('btn_sprint_stop').setLabel('Arrêter').setStyle(ButtonStyle.Danger),
-                    new ButtonBuilder().setCustomId('btn_sprint_score').setLabel('Saisir Score').setStyle(ButtonStyle.Primary),
+                    new ButtonBuilder().setCustomId('btn_session_start').setLabel('Lancer / Configurer').setStyle(ButtonStyle.Success),
+                    new ButtonBuilder().setCustomId('btn_session_stop').setLabel('Arrêter').setStyle(ButtonStyle.Danger),
+                    new ButtonBuilder().setCustomId('btn_session_score').setLabel('Saisir Score').setStyle(ButtonStyle.Primary),
                     new ButtonBuilder().setCustomId('menu_retour').setLabel('Retour').setStyle(ButtonStyle.Secondary)
                 );
                 await interaction.update({ embeds: [embed], components: [row] });
             }
-            else if (id === 'btn_sprint_start') {
-                const modal = new ModalBuilder().setCustomId('modal_sprint_start').setTitle('Configurer le Sprint');
-                const t1 = new TextInputBuilder().setCustomId('duree').setLabel('Durée du sprint (minutes)').setStyle(TextInputStyle.Short).setValue('45').setRequired(true);
+            else if (id === 'btn_session_start') {
+                const modal = new ModalBuilder().setCustomId('modal_session_start').setTitle('Configurer la Session');
+                const t1 = new TextInputBuilder().setCustomId('duree').setLabel('Durée de la session (minutes)').setStyle(TextInputStyle.Short).setValue('45').setRequired(true);
                 const t2 = new TextInputBuilder().setCustomId('pause').setLabel('Temps de pause (minutes)').setStyle(TextInputStyle.Short).setValue('15').setRequired(true);
-                const t3 = new TextInputBuilder().setCustomId('boucles').setLabel('Nombre de sprints à enchaîner').setStyle(TextInputStyle.Short).setValue('1').setRequired(true);
+                const t3 = new TextInputBuilder().setCustomId('boucles').setLabel('Nombre de sessions à enchaîner').setStyle(TextInputStyle.Short).setValue('1').setRequired(true);
 
                 modal.addComponents(new ActionRowBuilder().addComponents(t1), new ActionRowBuilder().addComponents(t2), new ActionRowBuilder().addComponents(t3));
                 await interaction.showModal(modal);
             }
-            else if (id === 'btn_sprint_stop') {
+            else if (id === 'btn_session_stop') {
                 await interaction.deferUpdate();
                 await stopCurrentSession(interaction);
             }
-            else if (id === 'btn_sprint_score' || id.startsWith('session_score_')) {
-                // Pour le score de session, s'ils ont plusieurs livres en cours, on doit savoir lequel.
-                // Simplification : on met à jour uniquement "is_current = 1" (Livre stream) ou on demande juste les pages.
+            else if (id === 'btn_session_score' || id.startsWith('session_score_')) {
                 const sessionId = id.startsWith('session_score_') ? id.split('_')[2] : 'latest';
-                const modal = new ModalBuilder().setCustomId(`modal_score_${sessionId}`).setTitle('Score Sprint');
+                const modal = new ModalBuilder().setCustomId(`modal_score_${sessionId}`).setTitle('Score Session');
                 const pi = new TextInputBuilder().setCustomId('pages_read').setLabel('Pages lues').setStyle(TextInputStyle.Short).setRequired(true);
                 modal.addComponents(new ActionRowBuilder().addComponents(pi));
                 await interaction.showModal(modal);
@@ -299,7 +297,7 @@ export const event = {
 
         // --- Modals (Formulaires) ---
         else if (interaction.isModalSubmit()) {
-            if (interaction.customId === 'modal_sprint_start') {
+            if (interaction.customId === 'modal_session_start') {
                 const d = parseInt(interaction.fields.getTextInputValue('duree')) || 45;
                 const p = parseInt(interaction.fields.getTextInputValue('pause')) || 15;
                 const b = parseInt(interaction.fields.getTextInputValue('boucles')) || 1;
@@ -308,7 +306,7 @@ export const event = {
 
                 const [rows] = await db.query(`SELECT session_channel_id FROM guilds WHERE guild_id = ?`, [interaction.guildId]);
                 if (rows.length === 0 || !rows[0].session_channel_id) {
-                    return interaction.followUp({ embeds: [createErrorEmbed('Salon non configuré. `/sprint config` d\'abord.')], ephemeral: true });
+                    return interaction.followUp({ embeds: [createErrorEmbed('Salon non configuré. `/session config` d\'abord.')], ephemeral: true });
                 }
 
                 await startSession(interaction, d, p, b, 1);

@@ -46,7 +46,7 @@ export async function startSession(interaction, duration, breakDuration, session
 async function startSessionInner(client, guildId, userId, duration, breakDuration, sessionCount, currentIteration, announceChannel, voiceChannelId, interaction = null) {
     // 3. Créer la session en BDD
     const [result] = await db.query(
-        `INSERT INTO sessions (guild_id, started_by, sprint_minutes, break_minutes, status, channel_id) 
+        `INSERT INTO sessions (guild_id, started_by, session_minutes, break_minutes, status, channel_id) 
          VALUES (?, ?, ?, ?, 'active', ?)`,
         [guildId, userId, duration, breakDuration, announceChannel.id]
     );
@@ -55,9 +55,9 @@ async function startSessionInner(client, guildId, userId, duration, breakDuratio
     // 4. Envoyer l'annonce de début
     const endTime = Math.floor((Date.now() + duration * 60000) / 1000);
     const embed = createBaseEmbed()
-        .setTitle(`⏱️ Sprint de lecture [${currentIteration}/${sessionCount}]`)
+        .setTitle(`⏱️ Session de lecture [${currentIteration}/${sessionCount}]`)
         .setDescription(`Préparez vos livres et coupez vos notifications.\n\n**Durée :** ${duration} minutes\n**Fin prévue :** <t:${endTime}:R>`)
-        .addFields({ name: 'Lancé par', value: `<@${userId}>` });
+        .addFields({ name: 'Lancée par', value: `<@${userId}>` });
 
     const message = await announceChannel.send({ content: '@here', embeds: [embed] });
 
@@ -72,7 +72,7 @@ async function startSessionInner(client, guildId, userId, duration, breakDuratio
         await playSignal(guildId, process.env.AUDIO_SESSION_START || './audio/session_start.mp3', voiceChannelId);
     }
     
-    // 5. Démarrer le timer du sprint
+    // 5. Démarrer le timer de la session
     const timerId = setTimeout(async () => {
         await endSession(client, guildId, sessionId, userId, duration, breakDuration, sessionCount, currentIteration, announceChannel, voiceChannelId);
     }, duration * 60000);
@@ -96,14 +96,14 @@ export async function endSession(client, guildId, sessionId, userId, duration, b
         new ButtonBuilder().setCustomId(`session_score_${sessionId}`).setLabel('Saisir mes pages lues').setStyle(ButtonStyle.Success).setEmoji('📝')
     );
 
-    const embed = createSuccessEmbed(`Le sprint [${currentIteration}/${sessionCount}] est terminé !`)
+    const embed = createSuccessEmbed(`La session [${currentIteration}/${sessionCount}] est terminée !`)
         .setDescription(`Bravo à tous pour ces **${duration} minutes** de lecture ! ☕\nPrenez maintenant une pause de **${breakDuration} minutes**.\n\nCliquez sur le bouton ci-dessous pour enregistrer votre progression.`);
 
     if (isLast) {
-        embed.addFields({ name: 'Fin de la session', value: 'C\'était le dernier sprint de cette série. Bon repos !' });
+        embed.addFields({ name: 'Fin de la session', value: 'C\'était la dernière session de cette série. Bon repos !' });
     } else {
         const nextTime = Math.floor((Date.now() + breakDuration * 60000) / 1000);
-        embed.addFields({ name: 'Prochain sprint', value: `Le sprint [${currentIteration + 1}/${sessionCount}] commencera <t:${nextTime}:R>.` });
+        embed.addFields({ name: 'Prochaine session', value: `La session [${currentIteration + 1}/${sessionCount}] commencera <t:${nextTime}:R>.` });
     }
 
     await announceChannel.send({ embeds: [embed], components: [row] });
@@ -123,7 +123,7 @@ export async function endSession(client, guildId, sessionId, userId, duration, b
 async function endBreak(client, guildId, userId, duration, breakDuration, sessionCount, currentIteration, announceChannel, voiceChannelId) {
     activeTimers.delete(guildId);
     
-    // On doit clôturer l'ancienne session 'break' avant d'en rouvrir une nouvelle pour le prochain sprint
+    // On doit clôturer l'ancienne session 'break' avant d'en rouvrir une nouvelle pour la prochaine session
     // (Pour simplifier, on laisse l'ancienne en break car on n'a plus l'ID sous la main, ou on maj toutes celles en break)
     await db.query(`UPDATE sessions SET status = 'ended', ended_at = CURRENT_TIMESTAMP WHERE guild_id = ? AND status = 'break'`, [guildId]);
 

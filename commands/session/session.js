@@ -5,26 +5,27 @@ import { createBaseEmbed, createSuccessEmbed, createErrorEmbed } from '../../uti
 
 export const command = {
     data: new SlashCommandBuilder()
-        .setName('sprint')
+        .setName('session')
         .setDescription('Gestion des sessions de lecture')
         .addSubcommand(subcmd => 
             subcmd.setName('lancer')
-                  .setDescription('Lance un nouveau sprint')
+                  .setDescription('Lance une nouvelle session de lecture')
                   .addIntegerOption(opt => opt.setName('duree').setDescription('Durée en minutes (défaut: 45)').setMinValue(1).setMaxValue(180))
                   .addIntegerOption(opt => opt.setName('pause').setDescription('Pause en minutes (défaut: 15)').setMinValue(1).setMaxValue(60))
         )
         .addSubcommand(subcmd => 
             subcmd.setName('stopper')
-                  .setDescription('Arrête prématurément le sprint')
+                  .setDescription('Arrête prématurément la session')
         )
         .addSubcommand(subcmd => 
             subcmd.setName('recap')
-                  .setDescription('Récapitulatif du dernier sprint')
+                  .setDescription('Récapitulatif de la dernière session')
         )
         .addSubcommand(subcmd => 
             subcmd.setName('config')
-                  .setDescription('(Admin) Configure le salon des annonces')
-                  .addChannelOption(opt => opt.setName('salon').setDescription('Salon textuel').setRequired(true))
+                  .setDescription('(Admin) Configure le salon des annonces et le rôle gestionnaire')
+                  .addChannelOption(opt => opt.setName('salon').setDescription('Salon textuel').setRequired(false))
+                  .addRoleOption(opt => opt.setName('role').setDescription('Rôle autorisé à lancer les sessions').setRequired(false))
         ),
 
     async execute(interaction) {
@@ -32,11 +33,19 @@ export const command = {
         
         if (subcmd === 'lancer') {
             await interaction.deferReply({ ephemeral: true });
+            
+            // Vérification du rôle spécial
+            const [guildConfig] = await db.query(`SELECT session_manager_role_id, session_channel_id FROM guilds WHERE guild_id = ?`, [interaction.guildId]);
+            const managerRoleId = guildConfig[0]?.session_manager_role_id;
+            
+            if (managerRoleId && !interaction.member.roles.cache.has(managerRoleId) && !interaction.member.permissions.has('Administrator')) {
+                return interaction.editReply({ embeds: [createErrorEmbed(`Seuls les membres avec le rôle <@&${managerRoleId}> peuvent lancer des sessions.`)] });
+            }
+
             const d = interaction.options.getInteger('duree') || 45;
             const p = interaction.options.getInteger('pause') || 15;
             
-            const [rows] = await db.query(`SELECT session_channel_id FROM guilds WHERE guild_id = ?`, [interaction.guildId]);
-            if (rows.length === 0 || !rows[0].session_channel_id) return interaction.editReply({ embeds: [createErrorEmbed('Salon non configuré. Utilisez `/sprint config` ou `/setup` d\'abord.')] });
+            if (!guildConfig[0]?.session_channel_id) return interaction.editReply({ embeds: [createErrorEmbed('Salon non configuré. Utilisez `/session config` ou `/setup` d\'abord.')] });
             await startSession(interaction, d, p);
         } else if (subcmd === 'stopper') {
             await interaction.deferReply({ ephemeral: true });
@@ -47,21 +56,33 @@ export const command = {
         } else if (subcmd === 'config') {
             if (!interaction.member.permissions.has('ManageGuild')) return interaction.reply({ embeds: [createErrorEmbed('Permission manquante.')], ephemeral: true });
             await interaction.deferReply({ ephemeral: true });
+            
             const ch = interaction.options.getChannel('salon');
-            if (ch.type !== 0) return interaction.editReply({ embeds: [createErrorEmbed('Veuillez sélectionner un salon texte.')] });
-            await db.query(`INSERT INTO guilds (guild_id, guild_name, session_channel_id) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE session_channel_id = ?`, [interaction.guildId, interaction.guild.name, ch.id, ch.id]);
-            await interaction.editReply({ embeds: [createSuccessEmbed(`Configuration ok sur <#${ch.id}>.`)] });
+            const role = interaction.options.getRole('role');
+
+            if (!ch && !role) return interaction.editReply({ embeds: [createErrorEmbed('Veuillez spécifier au moins une option (salon ou rôle).')] });
+
+            if (ch) {
+                if (ch.type !== 0) return interaction.editReply({ embeds: [createErrorEmbed('Veuillez sélectionner un salon texte.')] });
+                await db.query(`INSERT INTO guilds (guild_id, guild_name, session_channel_id) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE session_channel_id = ?`, [interaction.guildId, interaction.guild.name, ch.id, ch.id]);
+            }
+
+            if (role) {
+                await db.query(`INSERT INTO guilds (guild_id, guild_name, session_manager_role_id) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE session_manager_role_id = ?`, [interaction.guildId, interaction.guild.name, role.id, role.id]);
+            }
+
+            await interaction.editReply({ embeds: [createSuccessEmbed(`Configuration mise à jour.${ch ? `\nSalon : <#${ch.id}>` : ''}${role ? `\nGestionnaire : <@&${role.id}>` : ''}`)] });
         }
     }
 };
 
 async function sendRecap(interaction) {
-    const [sessions] = await db.query(`SELECT id, sprint_minutes, started_at FROM sessions WHERE guild_id = ? ORDER BY started_at DESC LIMIT 1`, [interaction.guildId]);
+    const [sessions] = await db.query(`SELECT id, session_minutes, started_at FROM sessions WHERE guild_id = ? ORDER BY started_at DESC LIMIT 1`, [interaction.guildId]);
     if (sessions.length === 0) return interaction.editReply({ embeds: [createErrorEmbed('Aucune session n\'a eu lieu.')] });
     
     const [scores] = await db.query(`SELECT user_id, pages_read FROM session_scores WHERE session_id = ? ORDER BY pages_read DESC`, [sessions[0].id]);
     
-    const embed = createBaseEmbed().setTitle('📊 Récapitulatif').setDescription(`Sprint de **${sessions[0].sprint_minutes} min** lancé le <t:${Math.floor(new Date(sessions[0].started_at).getTime()/1000)}:d>.`);
+    const embed = createBaseEmbed().setTitle('📊 Récapitulatif').setDescription(`Session de **${sessions[0].session_minutes} min** lancée le <t:${Math.floor(new Date(sessions[0].started_at).getTime()/1000)}:d>.`);
     
     if (scores.length === 0) {
         embed.addFields({ name: 'Participants', value: 'Aucun score enregistré.' });

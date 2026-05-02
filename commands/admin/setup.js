@@ -15,6 +15,7 @@ export const command = {
         try {
             // --- 1. L'ACCUEIL ---
             const catAccueil = await guild.channels.create({ name: '╔═════ ‧₊˚ 📚 𝙰𝙲𝙲𝚄𝙴𝙸𝙻 ‧₊˚ ═════╗', type: ChannelType.GuildCategory });
+            const welcomeChannel = await guild.channels.create({ name: '◦ 👋・bienvenue', type: ChannelType.GuildText, parent: catAccueil.id });
             await guild.channels.create({ name: '◦ 📜・règlement', type: ChannelType.GuildText, parent: catAccueil.id });
             await guild.channels.create({ name: '◦ 📅・agenda-lectures', type: ChannelType.GuildText, parent: catAccueil.id });
             await guild.channels.create({ name: '◦ 👋・présentations', type: ChannelType.GuildText, parent: catAccueil.id });
@@ -23,7 +24,7 @@ export const command = {
             const catCafe = await guild.channels.create({ name: '╔════ ‧₊˚ ☕ 𝙲𝙰𝙵𝙴 𝙻𝙸𝚃𝚃𝙴 ‧₊˚ ════╗', type: ChannelType.GuildCategory });
             await guild.channels.create({ name: '◦ 💬・blabla-chill', type: ChannelType.GuildText, parent: catCafe.id });
             await guild.channels.create({ name: '◦ 💡・recherches-conseils', type: ChannelType.GuildText, parent: catCafe.id });
-            const sessionChannel = await guild.channels.create({ name: '◦ ⏱️・sprints-annonces', type: ChannelType.GuildText, parent: catCafe.id });
+            const sessionChannel = await guild.channels.create({ name: '◦ ⏱️・sessions-annonces', type: ChannelType.GuildText, parent: catCafe.id });
 
             // --- 3. AVIS ET CHRONIQUES ---
             const catAvis = await guild.channels.create({ name: '╔═══ ‧₊˚ 🌟 𝙲𝙷𝚁𝙾𝙽𝙸𝚀𝚄𝙴𝚂 ‧₊˚ ════╗', type: ChannelType.GuildCategory });
@@ -56,29 +57,25 @@ export const command = {
             const logVoice = await guild.channels.create({ name: '◦ 🔊・logs-vocaux', type: ChannelType.GuildText, parent: catAdmin.id });
             const logMember = await guild.channels.create({ name: '◦ 👥・logs-membres', type: ChannelType.GuildText, parent: catAdmin.id });
 
-
-
-
-
-
             // --- SAUVEGARDE EN BASE DE DONNÉES ---
             await db.query(
                 `INSERT INTO guilds (
                     guild_id, guild_name, session_channel_id, voice_hub_id, voice_category_id,
-                    log_msg_id, log_voice_id, log_member_id, reviews_channel_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    log_msg_id, log_voice_id, log_member_id, reviews_channel_id, welcome_channel_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE
                     guild_name = VALUES(guild_name), session_channel_id = VALUES(session_channel_id),
                     voice_hub_id = VALUES(voice_hub_id), voice_category_id = VALUES(voice_category_id),
                     log_msg_id = VALUES(log_msg_id), log_voice_id = VALUES(log_voice_id),
-                    log_member_id = VALUES(log_member_id), reviews_channel_id = VALUES(reviews_channel_id)`,
+                    log_member_id = VALUES(log_member_id), reviews_channel_id = VALUES(reviews_channel_id),
+                    welcome_channel_id = VALUES(welcome_channel_id)`,
                 [
                     guild.id, guild.name, sessionChannel.id, voiceHub.id, catStream.id,
-                    logMsg.id, logVoice.id, logMember.id, reviewsChannel.id
+                    logMsg.id, logVoice.id, logMember.id, reviewsChannel.id, welcomeChannel.id
                 ]
             );
 
-            await interaction.editReply({ embeds: [createSuccessEmbed('Architecture déployée avec succès ! Les cocons, les logs et les sprints sont configurés.')] });
+            await interaction.editReply({ embeds: [createSuccessEmbed('Architecture déployée avec succès ! Les cocons, les logs, les sessions et le salon de bienvenue sont configurés.')] });
         } catch (error) {
             console.error('[Setup] Erreur:', error);
             await interaction.editReply({ embeds: [createErrorEmbed('Une erreur est survenue lors de la création de l\'architecture.')] });

@@ -47,6 +47,8 @@ async function createTables() {
             log_voice_id        VARCHAR(20)  DEFAULT NULL,
             log_member_id       VARCHAR(20)  DEFAULT NULL,
             reviews_channel_id  VARCHAR(20)  DEFAULT NULL,
+            welcome_channel_id  VARCHAR(20)  DEFAULT NULL,
+            session_manager_role_id VARCHAR(20) DEFAULT NULL,
             music_volume        INT          NOT NULL DEFAULT 50,
             created_at          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (guild_id)
@@ -57,6 +59,7 @@ async function createTables() {
             user_id          VARCHAR(20)  NOT NULL,
             display_name     VARCHAR(100) DEFAULT NULL,
             livraddict_url   VARCHAR(500) DEFAULT NULL,
+            pal_url          VARCHAR(500) DEFAULT NULL,
             total_pages_read INT          NOT NULL DEFAULT 0,
             level_id         INT          NOT NULL DEFAULT 1,
             created_at       TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -89,7 +92,7 @@ async function createTables() {
             id            INT          NOT NULL AUTO_INCREMENT,
             guild_id      VARCHAR(20)  NOT NULL,
             started_by    VARCHAR(20)  NOT NULL,
-            sprint_minutes INT         NOT NULL DEFAULT 45,
+            session_minutes INT         NOT NULL DEFAULT 45,
             break_minutes  INT         NOT NULL DEFAULT 15,
             status        ENUM('active','break','ended') NOT NULL DEFAULT 'active',
             message_id    VARCHAR(20)  DEFAULT NULL,
@@ -157,7 +160,11 @@ async function createTables() {
         "ALTER TABLE guilds ADD log_msg_id VARCHAR(20) DEFAULT NULL",
         "ALTER TABLE guilds ADD log_voice_id VARCHAR(20) DEFAULT NULL",
         "ALTER TABLE guilds ADD log_member_id VARCHAR(20) DEFAULT NULL",
-        "ALTER TABLE guilds ADD reviews_channel_id VARCHAR(20) DEFAULT NULL"
+        "ALTER TABLE guilds ADD reviews_channel_id VARCHAR(20) DEFAULT NULL",
+        "ALTER TABLE guilds ADD welcome_channel_id VARCHAR(20) DEFAULT NULL",
+        "ALTER TABLE guilds ADD session_manager_role_id VARCHAR(20) DEFAULT NULL",
+        "ALTER TABLE users ADD pal_url VARCHAR(500) DEFAULT NULL",
+        "ALTER TABLE sessions CHANGE sprint_minutes session_minutes INT NOT NULL DEFAULT 45"
     ];
 
     for (const m of migrations) {

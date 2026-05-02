@@ -54,10 +54,11 @@ export async function sendDashboard(interaction, isUpdate = false) {
         new ButtonBuilder().setCustomId('menu_pal_maj').setLabel('🎯 Maj Progression').setStyle(ButtonStyle.Secondary)
     );
 
-    // Ligne 2 : Sprints & Stream
+    // Ligne 2 : Sessions & Stream
     const row2 = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('menu_sprint').setLabel('⏱️ Sprints Lecture').setStyle(ButtonStyle.Danger),
-        new ButtonBuilder().setCustomId('menu_stream_livre').setLabel('🎥 Définir Livre Stream').setStyle(ButtonStyle.Secondary)
+        new ButtonBuilder().setCustomId('menu_session').setLabel('⏱️ Sessions Lecture').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('menu_stream').setLabel('🎥 Stream / Overlay').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('menu_aide').setLabel('❓ Aide').setStyle(ButtonStyle.Secondary)
     );
 
     // Ligne 3 : Musique & Profil complet

@@ -126,8 +126,8 @@ body {
     box-shadow: 0 0 10px var(--primary-glow);
 }
 
-/* --- Sprint Timer --- */
-.sprint-container {
+/* --- Session Timer --- */
+.session-container {
     margin-top: 10px;
     background: rgba(0, 0, 0, 0.3);
     border: 1px solid rgba(212, 168, 83, 0.3);
@@ -139,13 +139,13 @@ body {
     animation: pulseBorder 2s infinite;
 }
 
-.sprint-label {
+.session-label {
     font-size: 0.8rem;
     color: var(--primary);
     font-weight: 600;
 }
 
-.sprint-timer {
+.session-timer {
     font-family: monospace;
     font-size: 1.1rem;
     font-weight: bold;

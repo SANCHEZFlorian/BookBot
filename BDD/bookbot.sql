@@ -18,6 +18,8 @@ CREATE TABLE IF NOT EXISTS guilds (
     log_voice_id        VARCHAR(20)  DEFAULT NULL,
     log_member_id       VARCHAR(20)  DEFAULT NULL,
     reviews_channel_id  VARCHAR(20)  DEFAULT NULL,
+    welcome_channel_id  VARCHAR(20)  DEFAULT NULL,
+    session_manager_role_id VARCHAR(20) DEFAULT NULL,
     reader_role_id      VARCHAR(20)  DEFAULT NULL,
     music_volume        INT          NOT NULL DEFAULT 50,
     created_at          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -28,12 +30,13 @@ CREATE TABLE IF NOT EXISTS guilds (
 -- Utilisateurs
 -- ----------------------------
 CREATE TABLE IF NOT EXISTS users (
-    user_id         VARCHAR(20)  NOT NULL,
-    display_name    VARCHAR(100) DEFAULT NULL,
-    livraddict_url  VARCHAR(500) DEFAULT NULL,
-    total_pages_read INT         NOT NULL DEFAULT 0,
-    level_id        INT          NOT NULL DEFAULT 1,
-    created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    user_id          VARCHAR(20)  NOT NULL,
+    display_name     VARCHAR(100) DEFAULT NULL,
+    livraddict_url   VARCHAR(500) DEFAULT NULL,
+    pal_url          VARCHAR(500) DEFAULT NULL,
+    total_pages_read INT          NOT NULL DEFAULT 0,
+    level_id         INT          NOT NULL DEFAULT 1,
+    created_at       TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -83,7 +86,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     id              INT          NOT NULL AUTO_INCREMENT,
     guild_id        VARCHAR(20)  NOT NULL,
     started_by      VARCHAR(20)  NOT NULL,
-    sprint_minutes  INT          NOT NULL DEFAULT 45,
+    session_minutes INT          NOT NULL DEFAULT 45,
     break_minutes   INT          NOT NULL DEFAULT 15,
     status          ENUM('active','break','ended') NOT NULL DEFAULT 'active',
     message_id      VARCHAR(20)  DEFAULT NULL,

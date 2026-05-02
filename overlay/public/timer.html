@@ -8,21 +8,21 @@
     <style>
         /* Surcharge pour le timer seul */
         body { margin: 0; padding: 0; overflow: hidden; background: transparent; }
-        .sprint-container {
+        .session-container {
             display: inline-flex;
             margin: 0;
             padding: 8px 15px;
             font-size: 1.2rem;
             box-shadow: 0 5px 15px rgba(0,0,0,0.5);
         }
-        .sprint-label { font-size: 1rem; margin-right: 15px; }
-        .sprint-timer { font-size: 1.5rem; }
+        .session-label { font-size: 1rem; margin-right: 15px; }
+        .session-timer { font-size: 1.5rem; }
     </style>
 </head>
 <body>
-    <div class="sprint-container hidden" id="sprint-container">
-        <div class="sprint-label" id="sprint-label">⏱️ Sprint</div>
-        <div class="sprint-timer" id="sprint-timer">00:00</div>
+    <div class="session-container hidden" id="session-container">
+        <div class="session-label" id="session-label">⏱️ Session</div>
+        <div class="session-timer" id="session-timer">00:00</div>
     </div>
 
     <script>
@@ -40,15 +40,15 @@
             try {
                 const res = await fetch(`/api/overlay/timer/${USER_ID}`);
                 const data = await res.json();
-                const container = document.getElementById('sprint-container');
-                const label = document.getElementById('sprint-label');
-                const timerText = document.getElementById('sprint-timer');
+                const container = document.getElementById('session-container');
+                const label = document.getElementById('session-label');
+                const timerText = document.getElementById('session-timer');
 
                 if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
 
                 if (data.isActive) {
                     container.classList.remove('hidden');
-                    label.innerText = "⏱️ Sprint en cours";
+                    label.innerText = "⏱️ Session en cours";
                     container.style.borderColor = "rgba(212, 168, 83, 0.8)";
                     
                     currentRemainingMs = data.remainingMs;
