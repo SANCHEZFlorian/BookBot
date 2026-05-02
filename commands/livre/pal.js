@@ -29,6 +29,10 @@ export const command = {
                   .addStringOption(opt => opt.setName('url').setDescription('Lien vers votre PAL').setRequired(true))
         )
         .addSubcommand(subcmd => 
+            subcmd.setName('refresh')
+                  .setDescription('Synchroniser votre PAL avec votre lien Livraddict')
+        )
+        .addSubcommand(subcmd => 
             subcmd.setName('import')
                   .setDescription('Importer des livres depuis votre PAL Livraddict')
                   .addStringOption(opt => opt.setName('url').setDescription('Lien de votre PAL Livraddict (doit finir par ?goto=pal)').setRequired(true))
@@ -46,6 +50,8 @@ export const command = {
             await handleRemove(interaction);
         } else if (subcmd === 'link') {
             await handleLink(interaction);
+        } else if (subcmd === 'refresh') {
+            await handleRefresh(interaction);
         } else if (subcmd === 'import') {
             await handleImport(interaction);
         }
@@ -186,6 +192,68 @@ export async function handleLink(interaction) {
     }
 }
 
+async function scrapeLivraddictPAL(url) {
+    const fetchPage = async (pageUrl) => {
+        try {
+            const response = await fetch(pageUrl, {
+                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36' },
+                timeout: 10000 
+            });
+            if (!response.ok) return null;
+            return await response.text();
+        } catch (e) {
+            console.error(`[Scraper] Erreur fetch ${pageUrl}:`, e.message);
+            return null;
+        }
+    };
+
+    const htmlInitial = await fetchPage(url);
+    if (!htmlInitial) return null;
+
+    const $init = cheerio.load(htmlInitial);
+    let maxPage = 1;
+    $init('a[href*="page="]').each((i, el) => {
+        const href = $init(el).attr('href');
+        const match = href.match(/page=(\d+)/);
+        if (match) {
+            const p = parseInt(match[1]);
+            if (p > maxPage) maxPage = p;
+        }
+    });
+
+    if (maxPage > 20) maxPage = 20;
+    const allBooks = [];
+    const baseUrl = url.split('?')[0];
+
+    for (let p = 1; p <= maxPage; p++) {
+        const pageUrl = `${baseUrl}?page=${p}&goto=pal`;
+        const html = (p === 1 && !url.includes('page=')) ? htmlInitial : await fetchPage(pageUrl);
+        if (!html) continue;
+
+        const $page = cheerio.load(html);
+        $page('.bibliotheque_list li').each((i, el) => {
+            const title = $page(el).find('h2 a').first().text().trim();
+            const author = $page(el).find('p a[href*="/biblio/auteur/"]').first().text().trim();
+            let coverUrl = $page(el).find('img.miniature').attr('src');
+            
+            if (coverUrl && coverUrl.startsWith('/')) {
+                coverUrl = 'https://www.livraddict.com' + coverUrl;
+            }
+            
+            const allText = $page(el).text();
+            const pagesMatch = allText.match(/(\d+)\s*pages/);
+            const totalPages = pagesMatch ? parseInt(pagesMatch[1]) : null;
+
+            if (title) {
+                allBooks.push({ title, author, coverUrl, totalPages });
+            }
+        });
+        if (maxPage > 1) await new Promise(r => setTimeout(r, 800));
+    }
+
+    return { books: allBooks, maxPage };
+}
+
 export async function handleImport(interaction) {
     await interaction.deferReply({ ephemeral: true });
     let url = interaction.options.getString('url');
@@ -196,90 +264,25 @@ export async function handleImport(interaction) {
     }
 
     try {
-        const fetchPage = async (pageUrl) => {
-            try {
-                const response = await fetch(pageUrl, {
-                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36' },
-                    timeout: 10000 
-                });
-                if (!response.ok) return null;
-                return await response.text();
-            } catch (e) {
-                console.error(`[Import PAL] Erreur fetch ${pageUrl}:`, e.message);
-                return null;
-            }
-        };
-
         console.log(`[Import PAL] Lancement pour ${userId} : ${url}`);
-        const htmlInitial = await fetchPage(url);
-        if (!htmlInitial) return interaction.editReply({ embeds: [createErrorEmbed('Impossible d\'accéder à la page. Vérifiez l\'URL.')] });
-
-        const $init = cheerio.load(htmlInitial);
+        const result = await scrapeLivraddictPAL(url);
         
-        // Détection des pages
-        let maxPage = 1;
-        $init('a[href*="page="]').each((i, el) => {
-            const href = $init(el).attr('href');
-            const match = href.match(/page=(\d+)/);
-            if (match) {
-                const p = parseInt(match[1]);
-                if (p > maxPage) maxPage = p;
-            }
-        });
-
-        if (maxPage > 20) maxPage = 20;
-        console.log(`[Import PAL] Pages à traiter : ${maxPage}`);
-
-        const allBooks = [];
-        const baseUrl = url.split('?')[0];
-
-        for (let p = 1; p <= maxPage; p++) {
-            const pageUrl = `${baseUrl}?page=${p}&goto=pal`;
-            const html = (p === 1 && !url.includes('page=')) ? htmlInitial : await fetchPage(pageUrl);
-            if (!html) continue;
-
-            const $page = cheerio.load(html);
-            $page('.bibliotheque_list li').each((i, el) => {
-                const title = $page(el).find('h2 a').first().text().trim();
-                const author = $page(el).find('p a[href*="/biblio/auteur/"]').first().text().trim();
-                let coverUrl = $page(el).find('img.miniature').attr('src');
-                
-                if (coverUrl && coverUrl.startsWith('/')) {
-                    coverUrl = 'https://www.livraddict.com' + coverUrl;
-                }
-                
-                const allText = $page(el).text();
-                const pagesMatch = allText.match(/(\d+)\s*pages/);
-                const totalPages = pagesMatch ? parseInt(pagesMatch[1]) : null;
-
-                if (title) {
-                    allBooks.push({ title, author, coverUrl, totalPages });
-                }
-            });
-            
-            console.log(`[Import PAL] Page ${p}/${maxPage} terminée.`);
-            if (maxPage > 1) await new Promise(r => setTimeout(r, 800));
+        if (!result || result.books.length === 0) {
+            return interaction.editReply({ embeds: [createErrorEmbed('Aucun livre trouvé ou erreur de connexion.')] });
         }
 
-        if (allBooks.length === 0) {
-            return interaction.editReply({ embeds: [createErrorEmbed('Aucun livre trouvé.')] });
-        }
-
-        // 3. Insertion en BDD avec recherche Google Books
         await db.query(`INSERT IGNORE INTO users (user_id, display_name) VALUES (?, ?)`, [userId, interaction.user.username]);
         
         let count = 0;
-        for (const b of allBooks) {
+        for (const b of result.books) {
             try {
                 const [existing] = await db.query(`SELECT id FROM books WHERE user_id = ? AND title = ?`, [userId, b.title]);
                 if (existing.length === 0) {
-                    // Recherche ID Google pour lier les métadonnées
                     let googleId = null;
                     const searchResults = await searchBook(`${b.title} ${b.author}`);
                     if (searchResults && searchResults.length > 0) {
                         const bestMatch = searchResults[0];
                         googleId = bestMatch.id;
-                        // On privilégie la couverture Google si celle de Livraddict est de mauvaise qualité
                         if (!b.coverUrl && bestMatch.coverUrl) b.coverUrl = bestMatch.coverUrl;
                         if (!b.totalPages && bestMatch.pageCount) b.totalPages = bestMatch.pageCount;
                     }
@@ -289,8 +292,6 @@ export async function handleImport(interaction) {
                         [userId, b.title, b.author, b.coverUrl, b.totalPages, googleId]
                     );
                     count++;
-                    
-                    // Délai pour ne pas spammer l'API Google
                     await new Promise(r => setTimeout(r, 300));
                 }
             } catch (dbErr) {
@@ -298,9 +299,72 @@ export async function handleImport(interaction) {
             }
         }
 
-        await interaction.editReply({ embeds: [createSuccessEmbed(`Importation terminée ! **${allBooks.length}** livres récupérés. **${count}** nouveaux ajouts.`)] });
+        await interaction.editReply({ embeds: [createSuccessEmbed(`Importation terminée ! **${result.books.length}** livres récupérés. **${count}** nouveaux ajouts.`)] });
     } catch (err) {
         console.error('[Import PAL] Erreur Fatale:', err);
         await interaction.editReply({ embeds: [createErrorEmbed(`Erreur : ${err.message}`)] });
+    }
+}
+
+export async function handleRefresh(interaction) {
+    await interaction.deferReply({ ephemeral: true });
+    const userId = interaction.user.id;
+
+    try {
+        const [userRows] = await db.query(`SELECT pal_url FROM users WHERE user_id = ?`, [userId]);
+        if (userRows.length === 0 || !userRows[0].pal_url) {
+            return interaction.editReply({ embeds: [createErrorEmbed('Vous n\'avez pas configuré de lien PAL. Utilisez `/pal link` d\'abord.')] });
+        }
+
+        const url = userRows[0].pal_url;
+        console.log(`[Refresh PAL] Lancement pour ${userId} : ${url}`);
+        const result = await scrapeLivraddictPAL(url);
+
+        if (!result || result.books.length === 0) {
+            return interaction.editReply({ embeds: [createErrorEmbed('Impossible de synchroniser. Vérifiez que votre profil est toujours public.')] });
+        }
+
+        const scrapedTitles = result.books.map(b => b.title);
+        
+        // 1. Supprimer les livres qui ne sont plus dans la PAL (uniquement ceux avec le statut 'to_read')
+        const [dbBooks] = await db.query(`SELECT id, title FROM books WHERE user_id = ? AND status = 'to_read'`, [userId]);
+        let removedCount = 0;
+        for (const dbBook of dbBooks) {
+            if (!scrapedTitles.includes(dbBook.title)) {
+                await db.query(`DELETE FROM books WHERE id = ?`, [dbBook.id]);
+                removedCount++;
+            }
+        }
+
+        // 2. Ajouter les nouveaux
+        let addedCount = 0;
+        for (const b of result.books) {
+            const [existing] = await db.query(`SELECT id FROM books WHERE user_id = ? AND title = ?`, [userId, b.title]);
+            if (existing.length === 0) {
+                let googleId = null;
+                const searchResults = await searchBook(`${b.title} ${b.author}`);
+                if (searchResults && searchResults.length > 0) {
+                    const bestMatch = searchResults[0];
+                    googleId = bestMatch.id;
+                    if (!b.coverUrl && bestMatch.coverUrl) b.coverUrl = bestMatch.coverUrl;
+                    if (!b.totalPages && bestMatch.pageCount) b.totalPages = bestMatch.pageCount;
+                }
+
+                await db.query(
+                    `INSERT INTO books (user_id, title, author, cover_url, total_pages, status, google_book_id) VALUES (?, ?, ?, ?, ?, 'to_read', ?)`,
+                    [userId, b.title, b.author, b.coverUrl, b.totalPages, googleId]
+                );
+                addedCount++;
+                await new Promise(r => setTimeout(r, 300));
+            }
+        }
+
+        await interaction.editReply({ 
+            embeds: [createSuccessEmbed(`Synchronisation terminée !\n\n➕ **${addedCount}** livres ajoutés\n➖ **${removedCount}** livres retirés\n📚 Total actuel : **${result.books.length}** livres`)] 
+        });
+
+    } catch (err) {
+        console.error('[Refresh PAL] Erreur:', err);
+        await interaction.editReply({ embeds: [createErrorEmbed(`Erreur lors de la synchronisation : ${err.message}`)] });
     }
 }
