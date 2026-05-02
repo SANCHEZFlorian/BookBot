@@ -166,22 +166,29 @@ export async function handleImport(interaction) {
 
     try {
         const fetchPage = async (pageUrl) => {
-            const response = await fetch(pageUrl, {
-                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36' }
-            });
-            if (!response.ok) return null;
-            return await response.text();
+            try {
+                const response = await fetch(pageUrl, {
+                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36' },
+                    timeout: 10000 
+                });
+                if (!response.ok) return null;
+                return await response.text();
+            } catch (e) {
+                console.error(`[Import PAL] Erreur fetch ${pageUrl}:`, e.message);
+                return null;
+            }
         };
 
-        const initialHtml = await fetchPage(url);
-        if (!initialHtml) return interaction.editReply({ embeds: [createErrorEmbed('Impossible d\'accéder à la page.')] });
+        console.log(`[Import PAL] Lancement pour ${userId} : ${url}`);
+        const htmlInitial = await fetchPage(url);
+        if (!htmlInitial) return interaction.editReply({ embeds: [createErrorEmbed('Impossible d\'accéder à la page. Vérifiez l\'URL.')] });
 
-        const $initial = cheerio.load(initialHtml);
+        const $init = cheerio.load(htmlInitial);
         
-        // 1. Détecter le nombre de pages
+        // Détection des pages
         let maxPage = 1;
-        $('a[href*="page="]').each((i, el) => {
-            const href = $(el).attr('href');
+        $init('a[href*="page="]').each((i, el) => {
+            const href = $init(el).attr('href');
             const match = href.match(/page=(\d+)/);
             if (match) {
                 const p = parseInt(match[1]);
@@ -189,29 +196,28 @@ export async function handleImport(interaction) {
             }
         });
 
-        // Sécurité : Max 20 pages pour éviter les abus/blocages
         if (maxPage > 20) maxPage = 20;
+        console.log(`[Import PAL] Pages à traiter : ${maxPage}`);
 
         const allBooks = [];
         const baseUrl = url.split('?')[0];
 
-        // 2. Boucler sur toutes les pages
         for (let p = 1; p <= maxPage; p++) {
             const pageUrl = `${baseUrl}?page=${p}&goto=pal`;
-            const html = p === 1 && url.includes('page=1') ? initialHtml : await fetchPage(pageUrl);
+            const html = (p === 1 && !url.includes('page=')) ? htmlInitial : await fetchPage(pageUrl);
             if (!html) continue;
 
-            const $ = cheerio.load(html);
-            $('.bibliotheque_list li').each((i, el) => {
-                const title = $(el).find('h2 a').first().text().trim();
-                const author = $(el).find('p a[href*="/biblio/auteur/"]').first().text().trim();
-                let coverUrl = $(el).find('img.miniature').attr('src');
+            const $page = cheerio.load(html);
+            $page('.bibliotheque_list li').each((i, el) => {
+                const title = $page(el).find('h2 a').first().text().trim();
+                const author = $page(el).find('p a[href*="/biblio/auteur/"]').first().text().trim();
+                let coverUrl = $page(el).find('img.miniature').attr('src');
                 
                 if (coverUrl && coverUrl.startsWith('/')) {
                     coverUrl = 'https://www.livraddict.com' + coverUrl;
                 }
                 
-                const allText = $(el).text();
+                const allText = $page(el).text();
                 const pagesMatch = allText.match(/(\d+)\s*pages/);
                 const totalPages = pagesMatch ? parseInt(pagesMatch[1]) : null;
 
@@ -220,32 +226,35 @@ export async function handleImport(interaction) {
                 }
             });
             
-            // Petit délai pour ne pas spammer Livraddict
-            if (maxPage > 1) await new Promise(resolve => setTimeout(resolve, 1000));
+            console.log(`[Import PAL] Page ${p}/${maxPage} terminée.`);
+            if (maxPage > 1) await new Promise(r => setTimeout(r, 800));
         }
 
         if (allBooks.length === 0) {
-            return interaction.editReply({ embeds: [createErrorEmbed('Aucun livre trouvé. Vérifiez que votre profil est public.')] });
+            return interaction.editReply({ embeds: [createErrorEmbed('Aucun livre trouvé.')] });
         }
 
-        // 3. Insertion en BDD
         await db.query(`INSERT IGNORE INTO users (user_id, display_name) VALUES (?, ?)`, [userId, interaction.user.username]);
         
         let count = 0;
         for (const b of allBooks) {
-            const [existing] = await db.query(`SELECT id FROM books WHERE user_id = ? AND title = ?`, [userId, b.title]);
-            if (existing.length === 0) {
-                await db.query(
-                    `INSERT INTO books (user_id, title, author, cover_url, total_pages, status) VALUES (?, ?, ?, ?, ?, 'to_read')`,
-                    [userId, b.title, b.author, b.coverUrl, b.totalPages]
-                );
-                count++;
+            try {
+                const [existing] = await db.query(`SELECT id FROM books WHERE user_id = ? AND title = ?`, [userId, b.title]);
+                if (existing.length === 0) {
+                    await db.query(
+                        `INSERT INTO books (user_id, title, author, cover_url, total_pages, status) VALUES (?, ?, ?, ?, ?, 'to_read')`,
+                        [userId, b.title, b.author, b.coverUrl, b.totalPages]
+                    );
+                    count++;
+                }
+            } catch (dbErr) {
+                console.error(`[Import PAL] Erreur BDD pour "${b.title}":`, dbErr.message);
             }
         }
 
-        await interaction.editReply({ embeds: [createSuccessEmbed(`Importation terminée ! **${allBooks.length}** livres trouvés au total sur **${maxPage}** pages. **${count}** nouveaux livres ajoutés.`)] });
+        await interaction.editReply({ embeds: [createSuccessEmbed(`Importation terminée ! **${allBooks.length}** livres récupérés. **${count}** nouveaux ajouts.`)] });
     } catch (err) {
-        console.error('[Import PAL] Erreur:', err);
-        await interaction.editReply({ embeds: [createErrorEmbed('Une erreur est survenue lors de l\'importation multi-pages.')] });
+        console.error('[Import PAL] Erreur Fatale:', err);
+        await interaction.editReply({ embeds: [createErrorEmbed(`Erreur : ${err.message}`)] });
     }
 }
