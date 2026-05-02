@@ -40,6 +40,13 @@ export async function sendProfile(interaction, targetUser, isUpdate = false) {
         );
 
         const stats = bookStats[0] || { total_books: 0, finished_books: 0, current_books: 0 };
+        
+        // Récupérer les lectures en cours
+        const [readingBooks] = await db.query(
+            `SELECT title, current_page, total_pages FROM books WHERE user_id = ? AND status = 'reading' ORDER BY added_at DESC LIMIT 3`,
+            [userId]
+        );
+
         const levelInfo = await getLevelInfo(userId);
         
         if (!levelInfo || !levelInfo.current) {
@@ -63,7 +70,7 @@ export async function sendProfile(interaction, targetUser, isUpdate = false) {
             embed.setDescription(links.join(' | '));
         }
 
-        let gradeText = `${current.emoji} **${current.name}**\n*Total : ${levelInfo.totalPages} pages lues*`;
+        let gradeText = `${current.emoji} **${current.name}**\n*Total : ${levelInfo.totalPages > 0 ? `${levelInfo.totalPages} pages lues` : 'Aucune page lue'}*`;
         
         if (next) {
             const percent = Math.floor((levelInfo.totalPages / next.min_pages) * 100);
@@ -77,10 +84,27 @@ export async function sendProfile(interaction, targetUser, isUpdate = false) {
 
         embed.addFields(
             { name: 'Grade Actuel', value: gradeText, inline: false },
-            { name: 'Livres lus', value: `${stats.finished_books}`, inline: true },
-            { name: 'PAL', value: `${stats.total_books - stats.finished_books} livres`, inline: true },
-            { name: 'En cours', value: `${stats.current_books}`, inline: true }
+            { name: 'Livres lus', value: stats.finished_books > 0 ? `${stats.finished_books}` : 'Aucun', inline: true },
+            { name: 'PAL', value: (stats.total_books - stats.finished_books) > 0 ? `${stats.total_books - stats.finished_books} livres` : 'Vide', inline: true },
+            { name: 'En cours', value: stats.current_books > 0 ? `${stats.current_books}` : 'Aucun', inline: true }
         );
+
+        // Ajout des lectures en cours
+        if (readingBooks.length > 0) {
+            let readingText = '';
+            for (const book of readingBooks) {
+                readingText += `📖 **${book.title}**\n`;
+                if (book.total_pages) {
+                    const percent = Math.min(100, Math.floor((book.current_page / book.total_pages) * 100));
+                    const filled = Math.floor(percent / 10);
+                    const bar = '🟧'.repeat(filled) + '⬜'.repeat(10 - filled);
+                    readingText += `${bar} ${percent}% (${book.current_page}/${book.total_pages}p)\n\n`;
+                } else {
+                    readingText += `Page ${book.current_page}\n\n`;
+                }
+            }
+            embed.addFields({ name: '📚 Lectures actuelles', value: readingText, inline: false });
+        }
 
         const components = isUpdate ? [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('menu_retour').setLabel('Retour').setStyle(ButtonStyle.Secondary))] : [];
         if (isUpdate) {

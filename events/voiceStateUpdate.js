@@ -15,17 +15,17 @@ export const event = {
         
         try {
             const [guildConfig] = await db.query(
-                `SELECT voice_hub_id, voice_category_id, log_voice_id FROM guilds WHERE guild_id = ?`, 
+                `SELECT voice_hub_id, log_voice_id FROM guilds WHERE guild_id = ?`, 
                 [guild.id]
             );
 
             if (guildConfig.length === 0) return;
 
             const hubId = guildConfig[0].voice_hub_id;
-            const catId = guildConfig[0].voice_category_id;
             const logId = guildConfig[0].log_voice_id;
 
             // --- 1. LOGS VOCAUX ---
+            // ... (keep logs logic)
             if (logId) {
                 const logChannel = await guild.channels.fetch(logId).catch(() => null);
                 if (logChannel) {
@@ -40,14 +40,14 @@ export const event = {
             }
 
             // --- 2. JOIN TO CREATE ---
-            // Quelqu'un rejoint la porte d'entrée
             if (newState.channelId === hubId) {
                 const channelName = `🛋️ Cocon de ${member.user.username}`;
-                
+                const parentId = newState.channel.parentId; 
+
                 const newChannel = await guild.channels.create({
                     name: channelName,
                     type: ChannelType.GuildVoice,
-                    parent: catId,
+                    parent: parentId,
                     permissionOverwrites: [
                         { id: member.id, allow: [PermissionFlagsBits.ManageChannels] }
                     ]
