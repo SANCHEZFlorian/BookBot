@@ -528,11 +528,22 @@ export const event = {
                                     const matchedTagName = Object.entries(categoryMapping).find(([key]) => bookCats.includes(key))?.[1];
                                     
                                     console.log(`[Reviews] Livre: ${book.title} | Cats: ${bookCats} | Match: ${matchedTagName}`);
+                                    console.log(`[Reviews] Tags disponibles dans le salon:`, reviewsChannel.availableTags.map(t => t.name));
 
                                     if (matchedTagName) {
-                                        const tag = reviewsChannel.availableTags.find(t => t.name.toLowerCase().includes(matchedTagName.toLowerCase().split(' ')[0]));
-                                        if (tag) appliedTags.push(tag.id);
+                                        const tag = reviewsChannel.availableTags.find(t => 
+                                            t.name.toLowerCase().includes(matchedTagName.toLowerCase()) || 
+                                            matchedTagName.toLowerCase().includes(t.name.toLowerCase().replace(/[^a-z]/g, ''))
+                                        );
+                                        if (tag) {
+                                            console.log(`[Reviews] Tag trouvé et appliqué: ${tag.name} (ID: ${tag.id})`);
+                                            appliedTags.push(tag.id);
+                                        } else {
+                                            console.log(`[Reviews] Aucun tag Discord ne correspond à "${matchedTagName}"`);
+                                        }
                                     }
+                                } else {
+                                    console.log(`[Reviews] Le livre ${book.title} n'a aucune catégorie définie dans l'API.`);
                                 }
 
                                 // Créer le post du livre
