@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChannelType, PermissionFlagsBits } from 'discord.js';
+import { SlashCommandBuilder, ChannelType, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import db from '../../config/database.js';
 import { createBaseEmbed, createSuccessEmbed, createErrorEmbed } from '../../utils/embedBuilder.js';
 
@@ -89,7 +89,11 @@ export const command = {
             await interaction.editReply({ embeds: [createSuccessEmbed('Nouvelle architecture "The Place" déployée avec succès !')] });
         } catch (error) {
             console.error('[Setup] Erreur:', error);
-            await interaction.editReply({ embeds: [createErrorEmbed('Une erreur est survenue lors de la création de l\'architecture.')] });
+            try {
+                await interaction.editReply({ embeds: [createErrorEmbed('Une erreur est survenue lors de la création de l\'architecture.')], flags: [MessageFlags.Ephemeral] });
+            } catch (e) {
+                if (e.code !== 10008) console.error('[Setup] Erreur lors du message d\'erreur:', e);
+            }
         }
     },
 };

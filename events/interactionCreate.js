@@ -22,8 +22,12 @@ export const event = {
             } catch (error) {
                 console.error(`[Erreur] Exécution commande ${interaction.commandName}:`, error);
                 const reply = { embeds: [createErrorEmbed('Une erreur est survenue lors de l\'exécution de cette commande.')], flags: [MessageFlags.Ephemeral] };
-                if (interaction.replied || interaction.deferred) await interaction.followUp(reply);
-                else await interaction.reply(reply);
+                try {
+                    if (interaction.replied || interaction.deferred) await interaction.followUp(reply);
+                    else await interaction.reply(reply);
+                } catch (e) {
+                    if (e.code !== 10008) console.error('[Interaction] Erreur lors du message d\'erreur:', e);
+                }
             }
         }
 

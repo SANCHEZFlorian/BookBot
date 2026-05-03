@@ -20,7 +20,9 @@
     "mysql2": "^3.22.0",
     "node-cron": "^4.2.1",
     "node-fetch": "^3.3.2",
-    "play-dl": "^1.9.7"
+    "opusscript": "^0.0.8",
+    "play-dl": "^1.9.7",
+    "tweetnacl": "^1.0.3"
   },
   "devDependencies": {
     "nodemon": "^3.0.3"

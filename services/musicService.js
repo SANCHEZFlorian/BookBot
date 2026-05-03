@@ -54,7 +54,7 @@ export async function playRadio(interaction, radioKey) {
         channelId: channel.id,
         guildId: channel.guild.id,
         adapterCreator: channel.guild.voiceAdapterCreator,
-        selfDeaf: true,
+        selfDeaf: false,
         selfMute: false
     });
 
@@ -66,23 +66,20 @@ export async function playRadio(interaction, radioKey) {
     });
 
     player.on('stateChange', (oldState, newState) => {
-        console.log(`[AudioPlayer] Transition: ${oldState.status} -> ${newState.status}`);
+        console.log(`[AudioPlayer] ${oldState.status} -> ${newState.status}`);
     });
 
     connection.on('stateChange', (oldState, newState) => {
-        console.log(`[VoiceConnection] Transition: ${oldState.status} -> ${newState.status}`);
+        console.log(`[VoiceConnection] ${oldState.status} -> ${newState.status}`);
         
-        // Workaround pour le bug de connexion UDP / Signalling loop
-        const oldNetworking = Reflect.get(oldState, 'networking');
-        const newNetworking = Reflect.get(newState, 'networking');
-
-        const networkStateChangeHandler = (oldNetworkState, newNetworkState) => {
-            const newUdp = Reflect.get(newNetworkState, 'udp');
-            clearInterval(newUdp?.keepAliveInterval);
-        };
-
-        oldNetworking?.off('stateChange', networkStateChangeHandler);
-        newNetworking?.on('stateChange', networkStateChangeHandler);
+        // Fix agressif pour la boucle de signalisation sur Linux
+        const networking = Reflect.get(newState, 'networking') || Reflect.get(connection, 'networking');
+        if (networking) {
+            const udp = Reflect.get(networking, 'udp');
+            if (udp && udp.keepAliveInterval) {
+                clearInterval(udp.keepAliveInterval);
+            }
+        }
     });
 
     connection.on('error', error => {
@@ -90,18 +87,19 @@ export async function playRadio(interaction, radioKey) {
     });
 
     try {
-        // Attendre que la connexion UDP soit bien établie avec Discord
-        await entersState(connection, VoiceConnectionStatus.Ready, 20_000);
-        console.log(`[VoiceConnection] UDP Connection Ready !`);
+        // Attendre que la connexion UDP soit bien établie (Délai 30s)
+        console.log(`[VoiceConnection] En attente de l'état READY...`);
+        await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
+        console.log(`[VoiceConnection] UDP Connecté et Prêt !`);
 
-        // Utiliser play-dl pour générer un flux propre (évite les blocages User-Agent de Zeno.fm)
+        // Utiliser play-dl pour générer un flux propre
         const stream = await play.stream(url);
         const resource = createAudioResource(stream.stream, { inputType: stream.type });
         
         player.play(resource);
         connection.subscribe(player);
     } catch (err) {
-        console.error(`[Audio/Network Error] Impossible de se connecter ou de lire le flux :`, err);
+        console.error(`[Audio/Network Error] Connexion impossible (Timeout UDP ?) :`, err.message);
         stopMusic(channel.guild.id);
     }
 
