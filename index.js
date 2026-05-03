@@ -60,4 +60,24 @@ async function startBot() {
 
 startBot();
 
+import { getVoiceConnections } from '@discordjs/voice';
+
+// Gestionnaire d'arrêt propre pour PM2 (Évite les connexions vocales fantômes au redémarrage)
+const gracefulShutdown = () => {
+    console.log('[System] Arrêt en cours, déconnexion vocale...');
+    try {
+        const connections = getVoiceConnections();
+        for (const connection of connections.values()) {
+            connection.destroy();
+        }
+        client.destroy();
+    } catch (e) {
+        console.error(e);
+    }
+    process.exit(0);
+};
+
+process.on('SIGINT', gracefulShutdown);
+process.on('SIGTERM', gracefulShutdown);
+
 export { client };

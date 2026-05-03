@@ -8,6 +8,7 @@ import {
     StreamType
 } from '@discordjs/voice';
 import ffmpegPath from 'ffmpeg-static';
+import play from 'play-dl';
 import fs from 'fs';
 import path from 'path';
 
@@ -76,12 +77,19 @@ export async function playRadio(interaction, radioKey) {
     });
 
     try {
-        // Créer la ressource depuis le flux radio
-        const resource = createAudioResource(url, { inputType: StreamType.Arbitrary });
+        // Attendre que la connexion UDP soit bien établie avec Discord
+        await entersState(connection, VoiceConnectionStatus.Ready, 20_000);
+        console.log(`[VoiceConnection] UDP Connection Ready !`);
+
+        // Utiliser play-dl pour générer un flux propre (évite les blocages User-Agent de Zeno.fm)
+        const stream = await play.stream(url);
+        const resource = createAudioResource(stream.stream, { inputType: stream.type });
+        
         player.play(resource);
         connection.subscribe(player);
     } catch (err) {
-        console.error(`[AudioResource Error] Impossible de créer ou jouer la ressource:`, err);
+        console.error(`[Audio/Network Error] Impossible de se connecter ou de lire le flux :`, err);
+        stopMusic(channel.guild.id);
     }
 
     // Stocker dans la map

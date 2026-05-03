@@ -1,7 +1,7 @@
-import { REST, Routes } from 'discord.js';
+import { REST, Routes, Events } from 'discord.js';
 
 export const event = {
-    name: 'ready',
+    name: Events.ClientReady,
     once: true,
     async execute(client) {
         console.log(`[Ready] Connecté en tant que ${client.user.tag} ! 📖`);
