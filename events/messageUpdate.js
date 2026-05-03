@@ -21,6 +21,7 @@ export const event = {
                 .addFields(
                     { name: 'Auteur', value: `<@${oldMessage.author.id}>`, inline: true },
                     { name: 'Salon', value: `<#${oldMessage.channel.id}>`, inline: true },
+                    { name: 'Lien', value: `[Aller au message](${newMessage.url})`, inline: true },
                     { name: 'Avant', value: oldMessage.content ? oldMessage.content.substring(0, 1024) : '*Vide*' },
                     { name: 'Après', value: newMessage.content ? newMessage.content.substring(0, 1024) : '*Vide*' }
                 )

@@ -133,6 +133,8 @@ async function createTables() {
             book_title     VARCHAR(300) NOT NULL,
             rating         INT          NOT NULL,
             comment        TEXT         NOT NULL,
+            thread_id      VARCHAR(20)  DEFAULT NULL,
+            message_id     VARCHAR(20)  DEFAULT NULL,
             created_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
             KEY idx_book_reviews (google_book_id)
@@ -164,7 +166,10 @@ async function createTables() {
         "ALTER TABLE guilds ADD welcome_channel_id VARCHAR(20) DEFAULT NULL",
         "ALTER TABLE guilds ADD session_manager_role_id VARCHAR(20) DEFAULT NULL",
         "ALTER TABLE users ADD pal_url VARCHAR(500) DEFAULT NULL",
-        "ALTER TABLE sessions CHANGE sprint_minutes session_minutes INT NOT NULL DEFAULT 45"
+        "ALTER TABLE sessions CHANGE sprint_minutes session_minutes INT NOT NULL DEFAULT 45",
+        "ALTER TABLE guilds ADD music_volume INT NOT NULL DEFAULT 50",
+        "ALTER TABLE book_reviews ADD thread_id VARCHAR(20) DEFAULT NULL",
+        "ALTER TABLE book_reviews ADD message_id VARCHAR(20) DEFAULT NULL"
     ];
 
     for (const m of migrations) {

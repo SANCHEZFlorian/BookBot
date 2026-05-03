@@ -249,7 +249,7 @@ export const event = {
                     const stars = '⭐'.repeat(r.rating) + '☆'.repeat(5 - r.rating);
                     let text = r.comment;
                     if (text.length > 200) text = text.substring(0, 197) + '...';
-                    embed.addFields({ name: `<@${r.user_id}> - ${stars}`, value: text });
+                    embed.addFields({ name: stars, value: `<@${r.user_id}>\n${text}` });
                 }
 
                 const row = new ActionRowBuilder().addComponents(
@@ -453,39 +453,80 @@ export const event = {
                 const comment = interaction.fields.getTextInputValue('comment');
 
                 try {
-                    await db.query(
-                        `INSERT INTO book_reviews (user_id, google_book_id, book_title, rating, comment) VALUES (?, ?, ?, ?, ?)`,
-                        [interaction.user.id, book.id, book.title, rating, comment]
-                    );
+                    await interaction.deferReply({ ephemeral: true });
 
-                    await interaction.reply({ embeds: [createSuccessEmbed('Votre chronique a été enregistrée !')], ephemeral: true });
+                    const [existingReview] = await db.query(`SELECT id, thread_id, message_id FROM book_reviews WHERE user_id = ? AND google_book_id = ?`, [interaction.user.id, book.id]);
+                    const isEdit = existingReview.length > 0;
 
-                    // Publier dans le salon de chroniques si configuré
+                    let threadId = null;
+                    let messageId = null;
+
                     const [guildConfig] = await db.query(`SELECT reviews_channel_id FROM guilds WHERE guild_id = ?`, [interaction.guildId]);
-                    if (guildConfig[0]?.reviews_channel_id) {
-                        const reviewsChannel = await interaction.guild.channels.fetch(guildConfig[0].reviews_channel_id).catch(() => null);
-                        if (reviewsChannel) {
-                            const stars = '⭐'.repeat(rating) + '☆'.repeat(5 - rating);
-                            const embed = createBaseEmbed()
-                                .setColor('#D4A853')
-                                .setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL() })
-                                .setTitle(`Chronique : ${book.title}`)
-                                .setDescription(`**Note :** ${stars}\n\n${comment}`);
+                    const reviewsChannel = guildConfig[0]?.reviews_channel_id ? await interaction.guild.channels.fetch(guildConfig[0].reviews_channel_id).catch(() => null) : null;
 
-                            if (book.coverUrl) embed.setThumbnail(book.coverUrl);
-                            if (book.author) embed.addFields({ name: 'Auteur', value: book.author });
+                    if (reviewsChannel) {
+                        const stars = '⭐'.repeat(rating) + '☆'.repeat(5 - rating);
+                        const reviewEmbed = createBaseEmbed()
+                            .setColor('#D4A853')
+                            .setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL() })
+                            .setDescription(`**Note :** ${stars}\n\n${comment}${isEdit ? '\n\n*(Avis édité)*' : ''}`);
 
-                            if (reviewsChannel.type === ChannelType.GuildForum) {
-                                await reviewsChannel.threads.create({
-                                    name: `Chronique : ${book.title.substring(0, 50)}`,
-                                    message: { embeds: [embed] }
+                        if (isEdit && existingReview[0].thread_id && existingReview[0].message_id) {
+                            threadId = existingReview[0].thread_id;
+                            messageId = existingReview[0].message_id;
+                            const thread = await reviewsChannel.threads.fetch(threadId).catch(() => null);
+                            if (thread) {
+                                const msg = await thread.messages.fetch(messageId).catch(() => null);
+                                if (msg) await msg.edit({ embeds: [reviewEmbed] });
+                            }
+                        } else if (!isEdit) {
+                            // Chercher si un thread existe déjà pour ce livre
+                            const [existingThreadDb] = await db.query(`SELECT thread_id FROM book_reviews WHERE google_book_id = ? AND thread_id IS NOT NULL LIMIT 1`, [book.id]);
+                            
+                            let thread = null;
+                            if (existingThreadDb.length > 0) {
+                                thread = await reviewsChannel.threads.fetch(existingThreadDb[0].thread_id).catch(() => null);
+                            }
+
+                            if (!thread && reviewsChannel.type === ChannelType.GuildForum) {
+                                // Créer le post du livre
+                                const bookEmbed = createBaseEmbed()
+                                    .setTitle(book.title)
+                                    .setDescription(book.description ? book.description.substring(0, 500) + '...' : 'Livre en cours de discussion.');
+                                if (book.coverUrl) bookEmbed.setThumbnail(book.coverUrl);
+                                if (book.author) bookEmbed.addFields({ name: 'Auteur', value: book.author });
+
+                                const newThread = await reviewsChannel.threads.create({
+                                    name: book.title.substring(0, 100),
+                                    message: { embeds: [bookEmbed] }
                                 });
-                            } else {
-                                await reviewsChannel.send({ embeds: [embed] });
+                                thread = newThread;
+                            } else if (!thread) {
+                                thread = reviewsChannel; // Fallback
+                            }
+
+                            if (thread) {
+                                const sentMsg = await thread.send({ embeds: [reviewEmbed] });
+                                threadId = thread.id || threadId;
+                                messageId = sentMsg.id;
                             }
                         }
                     }
-                } catch(e) { console.error(e); interaction.reply({ content: 'Erreur lors de la sauvegarde.', ephemeral: true }); }
+
+                    if (isEdit) {
+                        await db.query(
+                            `UPDATE book_reviews SET rating = ?, comment = ? WHERE id = ?`,
+                            [rating, comment, existingReview[0].id]
+                        );
+                        await interaction.editReply({ embeds: [createSuccessEmbed('Votre chronique a été mise à jour !')] });
+                    } else {
+                        await db.query(
+                            `INSERT INTO book_reviews (user_id, google_book_id, book_title, rating, comment, thread_id, message_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                            [interaction.user.id, book.id, book.title, rating, comment, threadId, messageId]
+                        );
+                        await interaction.editReply({ embeds: [createSuccessEmbed('Votre chronique a été enregistrée !')] });
+                    }
+                } catch(e) { console.error(e); interaction.editReply({ content: 'Erreur lors de la sauvegarde.', ephemeral: true }); }
             }
 
             else if (interaction.customId.startsWith('modal_lc_start_')) {

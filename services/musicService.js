@@ -57,6 +57,18 @@ export async function playRadio(interaction, radioKey) {
 
     connection.on('stateChange', (oldState, newState) => {
         console.log(`[VoiceConnection] Transition: ${oldState.status} -> ${newState.status}`);
+        
+        // Workaround pour le bug de connexion UDP / Signalling loop
+        const oldNetworking = Reflect.get(oldState, 'networking');
+        const newNetworking = Reflect.get(newState, 'networking');
+
+        const networkStateChangeHandler = (oldNetworkState, newNetworkState) => {
+            const newUdp = Reflect.get(newNetworkState, 'udp');
+            clearInterval(newUdp?.keepAliveInterval);
+        };
+
+        oldNetworking?.off('stateChange', networkStateChangeHandler);
+        newNetworking?.on('stateChange', networkStateChangeHandler);
     });
 
     connection.on('error', error => {
