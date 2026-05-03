@@ -1,6 +1,8 @@
+import dns from 'dns';
+dns.setDefaultResultOrder('ipv4first');
+
 import { Client, GatewayIntentBits, Collection, Partials } from 'discord.js';
 import dotenv from 'dotenv';
-import dns from 'dns';
 import { initDatabase } from './config/database.js';
 import { loadCommands } from './loader/commandLoader.js';
 import { loadEvents } from './loader/eventLoader.js';
@@ -8,9 +10,6 @@ import { startOverlayServer } from './overlay/server.js';
 import { initCronJobs } from './services/cronService.js';
 
 dotenv.config();
-
-// Fix pour le bug de connexion vocale sur les serveurs avec IPv6
-dns.setDefaultResultOrder('ipv4first');
 
 // Initialisation du client Discord avec les intents nécessaires pour BookBot
 const client = new Client({

@@ -63,7 +63,8 @@ async function searchGoogleBooks(query) {
                 description: info.description || 'Aucun résumé disponible.',
                 pageCount: info.pageCount || 0,
                 coverUrl: info.imageLinks ? info.imageLinks.thumbnail.replace('http:', 'https:') : null,
-                isbn: isbn
+                isbn: isbn,
+                categories: info.categories || []
             };
         });
     } catch (error) {

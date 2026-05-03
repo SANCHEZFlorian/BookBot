@@ -1,4 +1,4 @@
-import { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ButtonBuilder, ButtonStyle, ChannelType } from 'discord.js';
+import { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ButtonBuilder, ButtonStyle, ChannelType, MessageFlags } from 'discord.js';
 import db from '../config/database.js';
 import { createBaseEmbed, createSuccessEmbed, createErrorEmbed } from '../utils/embedBuilder.js';
 import { checkLevelUp } from '../services/levelService.js';
@@ -21,7 +21,7 @@ export const event = {
                 await command.execute(interaction);
             } catch (error) {
                 console.error(`[Erreur] Exécution commande ${interaction.commandName}:`, error);
-                const reply = { embeds: [createErrorEmbed('Une erreur est survenue lors de l\'exécution de cette commande.')], ephemeral: true };
+                const reply = { embeds: [createErrorEmbed('Une erreur est survenue lors de l\'exécution de cette commande.')], flags: [MessageFlags.Ephemeral] };
                 if (interaction.replied || interaction.deferred) await interaction.followUp(reply);
                 else await interaction.reply(reply);
             }
@@ -187,7 +187,7 @@ export const event = {
 
             // Rejoindre une LC
             else if (id.startsWith('btn_lc_join_')) {
-                await interaction.deferReply({ ephemeral: true });
+                await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
                 const bookId = id.substring('btn_lc_join_'.length);
                 const bookDetails = interaction.client.lcActiveBooks?.get(bookId);
 
@@ -239,7 +239,7 @@ export const event = {
 
                 if (reviews.length === 0) {
                     if (!interaction.replied && !interaction.deferred) {
-                        return interaction.reply({ embeds: [createErrorEmbed('Aucun avis n\'a encore été laissé pour ce livre.')], ephemeral: true });
+                        return interaction.reply({ embeds: [createErrorEmbed('Aucun avis n\'a encore été laissé pour ce livre.')], flags: [MessageFlags.Ephemeral] });
                     }
                     return;
                 }
@@ -260,7 +260,7 @@ export const event = {
                 if (id.startsWith('btn_avis_sort_')) {
                     await interaction.update({ embeds: [embed], components: [row] });
                 } else {
-                    await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
+                    await interaction.reply({ embeds: [embed], components: [row], flags: [MessageFlags.Ephemeral] });
                 }
             }
             else if (id === 'menu_pal_ajouter') {
@@ -271,7 +271,7 @@ export const event = {
             }
             else if (id === 'menu_pal_maj') {
                 const [rows] = await db.query(`SELECT id, title FROM books WHERE user_id = ? AND status IN ('to_read', 'reading') ORDER BY added_at DESC LIMIT 25`, [interaction.user.id]);
-                if (rows.length === 0) return interaction.reply({ embeds: [createErrorEmbed('Aucun livre en cours.')], ephemeral: true });
+                if (rows.length === 0) return interaction.reply({ embeds: [createErrorEmbed('Aucun livre en cours.')], flags: [MessageFlags.Ephemeral] });
 
                 const selectMenu = new StringSelectMenuBuilder().setCustomId('select_pal_progression').setPlaceholder('Quel livre ?')
                     .addOptions(rows.map(b => new StringSelectMenuOptionBuilder().setLabel(b.title.substring(0,100)).setValue(`pal_prog_${b.id}`)));
@@ -336,7 +336,7 @@ export const event = {
                 const action = id.split('_')[2];
                 if (action === 'stop') {
                     if (stopMusic(interaction.guildId)) await interaction.update({ embeds: [createSuccessEmbed('Musique arrêtée.')], components: [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('menu_retour').setLabel('Retour').setStyle(ButtonStyle.Secondary))] });
-                    else await interaction.reply({ content: 'Rien en cours.', ephemeral: true });
+                    else await interaction.reply({ content: 'Rien en cours.', flags: [MessageFlags.Ephemeral] });
                 } else {
                     await interaction.deferUpdate();
                     await playRadio(interaction, action === 'chill' ? 'chillhop' : action);
@@ -356,7 +356,7 @@ export const event = {
 
                 const [rows] = await db.query(`SELECT session_channel_id FROM guilds WHERE guild_id = ?`, [interaction.guildId]);
                 if (rows.length === 0 || !rows[0].session_channel_id) {
-                    return interaction.followUp({ embeds: [createErrorEmbed('Salon non configuré. `/session config` d\'abord.')], ephemeral: true });
+                    return interaction.followUp({ embeds: [createErrorEmbed('Salon non configuré. `/session config` d\'abord.')], flags: [MessageFlags.Ephemeral] });
                 }
 
                 await startSession(interaction, d, p, b, 1);
@@ -371,11 +371,11 @@ export const event = {
                 const bookId = interaction.customId.split('_')[2];
                 const pageStr = interaction.fields.getTextInputValue('page_atteinte');
                 const page = parseInt(pageStr);
-                if (isNaN(page)) return interaction.reply({ content: 'Nombre invalide.', ephemeral: true });
+                if (isNaN(page)) return interaction.reply({ content: 'Nombre invalide.', flags: [MessageFlags.Ephemeral] });
 
                 try {
                     const [books] = await db.query(`SELECT title, current_page, total_pages FROM books WHERE id = ? AND user_id = ?`, [bookId, interaction.user.id]);
-                    if (books.length === 0) return interaction.reply({ content: 'Erreur.', ephemeral: true });
+                    if (books.length === 0) return interaction.reply({ content: 'Erreur.', flags: [MessageFlags.Ephemeral] });
                     const book = books[0];
 
                     const oldPage = book.current_page || 0;
@@ -401,7 +401,7 @@ export const event = {
 
             else if (interaction.customId.startsWith('modal_score_')) {
                 const pages = parseInt(interaction.fields.getTextInputValue('pages_read'));
-                if (isNaN(pages)) return interaction.reply({ content: 'Nombre invalide.', ephemeral: true });
+                if (isNaN(pages)) return interaction.reply({ content: 'Nombre invalide.', flags: [MessageFlags.Ephemeral] });
                 let sessionId = interaction.customId.split('_')[2];
                 const userId = interaction.user.id;
 
@@ -435,7 +435,7 @@ export const event = {
                         }
                     }
 
-                    await interaction.reply({ embeds: [createSuccessEmbed(`Score : **${pages} pages** ! 👏${bonus}`)], ephemeral: true });
+                    await interaction.reply({ embeds: [createSuccessEmbed(`Score : **${pages} pages** ! 👏${bonus}`)], flags: [MessageFlags.Ephemeral] });
                     await checkLevelUp(userId, interaction);
                 } catch(e) { console.error(e); interaction.reply({ content: 'Erreur', ephemeral:true }); }
             }
@@ -443,7 +443,7 @@ export const event = {
             else if (interaction.customId.startsWith('modal_avis_')) {
                 const index = parseInt(interaction.customId.split('_')[2]);
                 const results = interaction.client.avisSearchResults?.get(interaction.user.id);
-                if (!results) return interaction.reply({ content: 'Erreur : session expirée.', ephemeral: true });
+                if (!results) return interaction.reply({ content: 'Erreur : session expirée.', flags: [MessageFlags.Ephemeral] });
                 const book = results[index];
 
                 const ratingStr = interaction.fields.getTextInputValue('rating');
@@ -453,7 +453,7 @@ export const event = {
                 const comment = interaction.fields.getTextInputValue('comment');
 
                 try {
-                    await interaction.deferReply({ ephemeral: true });
+                    await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
 
                     const [existingReview] = await db.query(`SELECT id, thread_id, message_id FROM book_reviews WHERE user_id = ? AND google_book_id = ?`, [interaction.user.id, book.id]);
                     const isEdit = existingReview.length > 0;
@@ -471,24 +471,58 @@ export const event = {
                             .setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL() })
                             .setDescription(`**Note :** ${stars}\n\n${comment}${isEdit ? '\n\n*(Avis édité)*' : ''}`);
 
-                        if (isEdit && existingReview[0].thread_id && existingReview[0].message_id) {
-                            threadId = existingReview[0].thread_id;
-                            messageId = existingReview[0].message_id;
-                            const thread = await reviewsChannel.threads.fetch(threadId).catch(() => null);
-                            if (thread) {
-                                const msg = await thread.messages.fetch(messageId).catch(() => null);
-                                if (msg) await msg.edit({ embeds: [reviewEmbed] });
-                            }
-                        } else if (!isEdit) {
-                            // Chercher si un thread existe déjà pour ce livre
-                            const [existingThreadDb] = await db.query(`SELECT thread_id FROM book_reviews WHERE google_book_id = ? AND thread_id IS NOT NULL LIMIT 1`, [book.id]);
-                            
-                            let thread = null;
-                            if (existingThreadDb.length > 0) {
-                                thread = await reviewsChannel.threads.fetch(existingThreadDb[0].thread_id).catch(() => null);
-                            }
+                        let thread = null;
 
+                        // Tenter de récupérer le thread existant (depuis cet avis ou un autre avis du même livre)
+                        let targetThreadId = isEdit ? existingReview[0].thread_id : null;
+                        if (!targetThreadId) {
+                            const [otherReview] = await db.query(`SELECT thread_id FROM book_reviews WHERE google_book_id = ? AND thread_id IS NOT NULL LIMIT 1`, [book.id]);
+                            if (otherReview.length > 0) targetThreadId = otherReview[0].thread_id;
+                        }
+
+                        if (targetThreadId) {
+                            thread = await reviewsChannel.threads.fetch(targetThreadId).catch(() => null);
+                        }
+
+                        if (isEdit && thread && existingReview[0].message_id) {
+                            // Edition d'un message existant dans un thread existant
+                            const msg = await thread.messages.fetch(existingReview[0].message_id).catch(() => null);
+                            if (msg) {
+                                await msg.edit({ embeds: [reviewEmbed] });
+                                threadId = thread.id;
+                                messageId = msg.id;
+                            } else {
+                                // Le message a disparu mais le thread est là
+                                const sentMsg = await thread.send({ embeds: [reviewEmbed] });
+                                threadId = thread.id;
+                                messageId = sentMsg.id;
+                            }
+                        } else {
+                            // Nouvel avis ou thread/message disparu
                             if (!thread && reviewsChannel.type === ChannelType.GuildForum) {
+                                // Recherche de tag par genre
+                                const appliedTags = [];
+                                if (book.categories && book.categories.length > 0) {
+                                    const categoryMapping = {
+                                        'romance': 'Romance',
+                                        'dark romance': 'Dark Romance',
+                                        'thriller': 'Thriller / Polar',
+                                        'mystery': 'Thriller / Polar',
+                                        'fantasy': 'Fantasy / Magie',
+                                        'science fiction': 'Science-Fiction',
+                                        'manga': 'Manga / BD',
+                                        'classic': 'Classique'
+                                    };
+                                    
+                                    const bookCats = book.categories.join(' ').toLowerCase();
+                                    const matchedTagName = Object.entries(categoryMapping).find(([key]) => bookCats.includes(key))?.[1];
+                                    
+                                    if (matchedTagName) {
+                                        const tag = reviewsChannel.availableTags.find(t => t.name.toLowerCase().includes(matchedTagName.toLowerCase().split(' ')[0]));
+                                        if (tag) appliedTags.push(tag.id);
+                                    }
+                                }
+
                                 // Créer le post du livre
                                 const bookEmbed = createBaseEmbed()
                                     .setTitle(book.title)
@@ -496,18 +530,18 @@ export const event = {
                                 if (book.coverUrl) bookEmbed.setThumbnail(book.coverUrl);
                                 if (book.author) bookEmbed.addFields({ name: 'Auteur', value: book.author });
 
-                                const newThread = await reviewsChannel.threads.create({
+                                thread = await reviewsChannel.threads.create({
                                     name: book.title.substring(0, 100),
-                                    message: { embeds: [bookEmbed] }
+                                    message: { embeds: [bookEmbed] },
+                                    appliedTags: appliedTags
                                 });
-                                thread = newThread;
                             } else if (!thread) {
-                                thread = reviewsChannel; // Fallback
+                                thread = reviewsChannel;
                             }
 
                             if (thread) {
                                 const sentMsg = await thread.send({ embeds: [reviewEmbed] });
-                                threadId = thread.id || threadId;
+                                threadId = thread.id || null;
                                 messageId = sentMsg.id;
                             }
                         }
@@ -526,13 +560,13 @@ export const event = {
                         );
                         await interaction.editReply({ embeds: [createSuccessEmbed('Votre chronique a été enregistrée !')] });
                     }
-                } catch(e) { console.error(e); interaction.editReply({ content: 'Erreur lors de la sauvegarde.', ephemeral: true }); }
+                } catch(e) { console.error(e); interaction.editReply({ content: 'Erreur lors de la sauvegarde.', flags: [MessageFlags.Ephemeral] }); }
             }
 
             else if (interaction.customId.startsWith('modal_lc_start_')) {
                 const index = parseInt(interaction.customId.split('_')[3]);
                 const results = interaction.client.lcSearchResults?.get(interaction.user.id);
-                if (!results) return interaction.reply({ content: 'Erreur : session expirée.', ephemeral: true });
+                if (!results) return interaction.reply({ content: 'Erreur : session expirée.', flags: [MessageFlags.Ephemeral] });
                 const book = results[index];
 
                 const dateDebut = interaction.fields.getTextInputValue('date');
@@ -542,7 +576,7 @@ export const event = {
                     // Trouver le salon agenda-lectures
                     const agendaChannel = interaction.guild.channels.cache.find(c => c.name === 'agenda-lectures');
                     if (!agendaChannel) {
-                        return interaction.reply({ content: 'Salon #agenda-lectures introuvable. Veuillez exécuter `/setup`.', ephemeral: true });
+                        return interaction.reply({ content: 'Salon #agenda-lectures introuvable. Veuillez exécuter `/setup`.', flags: [MessageFlags.Ephemeral] });
                     }
 
                     // Stocker le livre en mémoire pour que les gens puissent le rejoindre
@@ -569,7 +603,7 @@ export const event = {
                             .setStyle(ButtonStyle.Success)
                     );
 
-                    await interaction.deferReply({ ephemeral: true });
+                    await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
                     const message = await agendaChannel.send({ embeds: [embed], components: [row] });
 
                     // Créer le Thread privé
@@ -582,7 +616,7 @@ export const event = {
                     await thread.send(`Bienvenue dans le salon de la LC pour **${book.title}** ! Vous pouvez discuter de votre avancée ici. N'oubliez pas d'utiliser les balises spoilers \`||texte||\` si besoin !`);
 
                     await interaction.editReply({ content: '✅ Lecture Commune lancée avec succès dans #agenda-lectures !' });
-                } catch(e) { console.error(e); interaction.reply({ content: 'Erreur lors de la création de la LC.', ephemeral: true }); }
+                } catch(e) { console.error(e); interaction.reply({ content: 'Erreur lors de la création de la LC.', flags: [MessageFlags.Ephemeral] }); }
             }
         }
     },

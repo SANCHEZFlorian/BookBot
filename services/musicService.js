@@ -5,7 +5,8 @@ import {
     AudioPlayerStatus, 
     VoiceConnectionStatus,
     entersState,
-    StreamType
+    StreamType,
+    generateDependencyReport
 } from '@discordjs/voice';
 import ffmpegPath from 'ffmpeg-static';
 import play from 'play-dl';
@@ -38,11 +39,23 @@ export async function playRadio(interaction, radioKey) {
     const url = RADIOS[radioKey];
     if (!url) throw new Error("Radio introuvable.");
 
+    // Log des dépendances pour débugger le VPS
+    console.log(generateDependencyReport());
+
+    // Nettoyer l'ancienne connexion si elle existe
+    const existing = guildPlayers.get(channel.guild.id);
+    if (existing) {
+        console.log(`[Music] Nettoyage de l'ancienne connexion pour ${channel.guild.id}`);
+        try { existing.connection.destroy(); } catch(e) {}
+    }
+
     // Créer la connexion
     const connection = joinVoiceChannel({
         channelId: channel.id,
         guildId: channel.guild.id,
         adapterCreator: channel.guild.voiceAdapterCreator,
+        selfDeaf: true,
+        selfMute: false
     });
 
     // Créer le lecteur audio
