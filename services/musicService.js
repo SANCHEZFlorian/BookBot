@@ -71,15 +71,6 @@ export async function playRadio(interaction, radioKey) {
 
     connection.on('stateChange', (oldState, newState) => {
         console.log(`[VoiceConnection] ${oldState.status} -> ${newState.status}`);
-        
-        // Fix agressif pour la boucle de signalisation sur Linux
-        const networking = Reflect.get(newState, 'networking') || Reflect.get(connection, 'networking');
-        if (networking) {
-            const udp = Reflect.get(networking, 'udp');
-            if (udp && udp.keepAliveInterval) {
-                clearInterval(udp.keepAliveInterval);
-            }
-        }
     });
 
     connection.on('error', error => {

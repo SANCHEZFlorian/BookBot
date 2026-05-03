@@ -512,15 +512,23 @@ export const event = {
                                         'dark romance': 'Dark Romance',
                                         'thriller': 'Thriller / Polar',
                                         'mystery': 'Thriller / Polar',
+                                        'crime': 'Thriller / Polar',
+                                        'polar': 'Thriller / Polar',
                                         'fantasy': 'Fantasy / Magie',
+                                        'magic': 'Fantasy / Magie',
                                         'science fiction': 'Science-Fiction',
+                                        'contemporain': 'Contemporain',
                                         'manga': 'Manga / BD',
+                                        'comics': 'Manga / BD',
+                                        'classique': 'Classique',
                                         'classic': 'Classique'
                                     };
                                     
                                     const bookCats = book.categories.join(' ').toLowerCase();
                                     const matchedTagName = Object.entries(categoryMapping).find(([key]) => bookCats.includes(key))?.[1];
                                     
+                                    console.log(`[Reviews] Livre: ${book.title} | Cats: ${bookCats} | Match: ${matchedTagName}`);
+
                                     if (matchedTagName) {
                                         const tag = reviewsChannel.availableTags.find(t => t.name.toLowerCase().includes(matchedTagName.toLowerCase().split(' ')[0]));
                                         if (tag) appliedTags.push(tag.id);
