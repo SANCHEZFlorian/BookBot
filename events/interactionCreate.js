@@ -148,6 +148,20 @@ export const event = {
                 const { handleHelpSelect } = await import('../commands/general/aide.js');
                 await handleHelpSelect(interaction);
             }
+
+            // Sélectionner le livre actuel pour le stream
+            else if (interaction.customId === 'select_stream_book') {
+                const value = interaction.values[0]; // ex: stream_set_5
+                const bookId = value.replace('stream_set_', '');
+
+                await db.query(`UPDATE books SET is_current = 0 WHERE user_id = ?`, [interaction.user.id]);
+                await db.query(`UPDATE books SET is_current = 1 WHERE id = ? AND user_id = ?`, [bookId, interaction.user.id]);
+
+                const embed = createSuccessEmbed('Votre livre actuel a été mis à jour ! Il s\'affichera sur votre Overlay OBS (Livre Actuel) et dans vos annonces de stream.');
+                await interaction.update({ embeds: [embed], components: [
+                    new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('menu_retour').setLabel('Retour au Menu').setStyle(ButtonStyle.Secondary))
+                ] });
+            }
         }
 
         // --- Boutons (Menu Global & Sessions) ---
@@ -201,16 +215,36 @@ export const event = {
                 }
             }
 
-            // Voir les avis d'un livre
-            else if (id.startsWith('btn_voir_avis_')) {
-                const bookId = id.substring('btn_voir_avis_'.length);
-                const [reviews] = await db.query(`SELECT user_id, rating, comment, created_at FROM book_reviews WHERE google_book_id = ? ORDER BY created_at DESC LIMIT 5`, [bookId]);
+            else if (id.startsWith('stream_prev_') || id.startsWith('stream_next_')) {
+                const parts = id.split('_');
+                const targetUserId = parts[2];
+                const page = parseInt(parts[3]);
+                const targetUser = await interaction.client.users.fetch(targetUserId);
+                const { sendStreamOverlay } = await import('../commands/stream/stream.js');
+                await sendStreamOverlay(interaction, targetUser, true, page);
+            }
 
-                if (reviews.length === 0) {
-                    return interaction.reply({ embeds: [createErrorEmbed('Aucun avis n\'a encore été laissé pour ce livre.')], ephemeral: true });
+            // Voir les avis d'un livre
+            else if (id.startsWith('btn_voir_avis_') || id.startsWith('btn_avis_sort_')) {
+                let bookId, order = 'DESC';
+                if (id.startsWith('btn_voir_avis_')) {
+                    bookId = id.substring('btn_voir_avis_'.length);
+                } else {
+                    const parts = id.split('_');
+                    order = parts[3]; // 'DESC' or 'ASC'
+                    bookId = parts.slice(4).join('_');
                 }
 
-                const embed = createBaseEmbed().setTitle('🌟 Avis des lecteurs');
+                const [reviews] = await db.query(`SELECT user_id, rating, comment, created_at FROM book_reviews WHERE google_book_id = ? ORDER BY rating ${order}, created_at DESC LIMIT 5`, [bookId]);
+
+                if (reviews.length === 0) {
+                    if (!interaction.replied && !interaction.deferred) {
+                        return interaction.reply({ embeds: [createErrorEmbed('Aucun avis n\'a encore été laissé pour ce livre.')], ephemeral: true });
+                    }
+                    return;
+                }
+
+                const embed = createBaseEmbed().setTitle(`🌟 Avis des lecteurs (${order === 'DESC' ? 'Meilleurs' : 'Pires'})`);
                 for (const r of reviews) {
                     const stars = '⭐'.repeat(r.rating) + '☆'.repeat(5 - r.rating);
                     let text = r.comment;
@@ -218,7 +252,16 @@ export const event = {
                     embed.addFields({ name: `<@${r.user_id}> - ${stars}`, value: text });
                 }
 
-                await interaction.reply({ embeds: [embed], ephemeral: true });
+                const row = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId(`btn_avis_sort_DESC_${bookId}`).setLabel('Meilleurs').setStyle(ButtonStyle.Success).setEmoji('📈'),
+                    new ButtonBuilder().setCustomId(`btn_avis_sort_ASC_${bookId}`).setLabel('Pires').setStyle(ButtonStyle.Danger).setEmoji('📉')
+                );
+
+                if (id.startsWith('btn_avis_sort_')) {
+                    await interaction.update({ embeds: [embed], components: [row] });
+                } else {
+                    await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
+                }
             }
             else if (id === 'menu_pal_ajouter') {
                 const modal = new ModalBuilder().setCustomId('modal_pal_add').setTitle('Ajouter à la PAL');

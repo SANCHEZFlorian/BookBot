@@ -31,17 +31,30 @@ export const command = {
 
             // --- 3. CHRONIQUES ---
             const catAvis = await guild.channels.create({ name: '╔═══ ‧₊˚ 🌟 𝙲𝙷𝚁𝙾𝙽𝙸𝚀𝚄𝙴𝚂 ‧₊˚ ════╗', type: ChannelType.GuildCategory });
+            const tags = [
+                { name: 'Romance', emoji: { name: '❤️' } },
+                { name: 'Dark Romance', emoji: { name: '🖤' } },
+                { name: 'Fantasy / Magie', emoji: { name: '✨' } },
+                { name: 'Thriller / Polar', emoji: { name: '🔪' } },
+                { name: 'Science-Fiction', emoji: { name: '🚀' } },
+                { name: 'Contemporain', emoji: { name: '🏙️' } },
+                { name: 'Manga / BD', emoji: { name: '📚' } },
+                { name: 'Classique', emoji: { name: '📜' } }
+            ];
+
             const reviewsChannel = await guild.channels.create({
                 name: '◦ 🌟・derniers-avis',
                 type: ChannelType.GuildForum,
                 parent: catAvis.id,
-                topic: 'Retrouvez ici tous les avis et chroniques de la communauté !'
+                topic: 'Retrouvez ici tous les avis et chroniques de la communauté !',
+                availableTags: tags
             });
             await guild.channels.create({
                 name: '◦ 🤫・discussions-spoilers',
                 type: ChannelType.GuildForum,
                 parent: catAvis.id,
-                topic: 'Ici on discute sans filtre ! Créez un post pour chaque livre.'
+                topic: 'Ici on discute sans filtre ! Créez un post pour chaque livre.',
+                availableTags: tags
             });
 
             // --- 4. ADMINISTRATION ---

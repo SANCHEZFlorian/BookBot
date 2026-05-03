@@ -59,7 +59,8 @@ export async function sendProfile(interaction, targetUser, isUpdate = false) {
 
         const embed = createBaseEmbed()
             .setColor(current.color)
-            .setTitle(`Profil Lecteur : ${targetUser.username}`)
+            .setTitle('Profil Lecteur')
+            .setDescription(`<@${targetUser.id}>`)
             .setThumbnail(targetUser.displayAvatarURL());
 
         let links = [];
@@ -67,7 +68,7 @@ export async function sendProfile(interaction, targetUser, isUpdate = false) {
         if (palUrl) links.push(`[📚 Ma PAL](${palUrl})`);
         
         if (links.length > 0) {
-            embed.setDescription(links.join(' | '));
+            embed.setDescription(`<@${targetUser.id}>\n\n` + links.join(' | '));
         }
 
         let gradeText = `${current.emoji} **${current.name}**\n*Total : ${levelInfo.totalPages > 0 ? `${levelInfo.totalPages} pages lues` : 'Aucune page lue'}*`;

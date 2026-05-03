@@ -66,29 +66,22 @@ export async function handleHelpSelect(interaction) {
     }
     else if (value === 'help_music') {
         embed.setTitle('🎵 Musique & Ambiance')
+            .setDescription('Mettez une ambiance cosy pendant que vous lisez.')
             .addFields(
-                { name: '`/musique play`', value: 'Lance une playlist Lo-Fi ou un son spécifique.' },
+                { name: 'Radios 24/7', value: 'Allez dans `/menu` > Musique, ou tapez `/musique jouer`. Le bot rejoindra votre salon vocal et diffusera une webradio (LoFi Chillhop, LoFi Beats ou Jazz).' },
                 { name: '`/musique stop`', value: 'Arrête la musique et fait quitter le bot.' },
-                { name: '`/musique volume`', value: 'Règle le volume global (0-100).' }
+                { name: 'Régler le son', value: 'Faites un **clic droit** sur le bot dans le salon vocal et baissez son volume localement.' }
             );
     }
     else if (value === 'help_stream') {
         embed.setTitle('🎥 Outils pour les Streamers')
             .setDescription('Affichez vos lectures directement sur votre stream Twitch ou YouTube !')
             .addFields(
-                { name: 'L\'Overlay OBS (`/stream overlay`)', value: 'Vous donne un lien privé. Ajoutez-le en tant que "Source Navigateur" sur OBS (450x180). Il affichera la couverture de votre livre, votre progression, et même le timer de la session en temps réel !' },
-                { name: 'Livre Stream', value: 'Si vous lisez plusieurs livres, allez dans `/menu` > "Livre Stream" pour choisir lequel s\'affichera sur OBS.' },
-                { name: 'Annonces', value: '`/stream annonce` pour prévenir que vous êtes en live, et `/stream programme` pour donner rendez-vous pour une lecture commune.' }
-            );
-    }
-    else if (value === 'help_musique') {
-        embed.setTitle('🎵 Musique et Ambiance')
-            .setDescription('Mettez une ambiance cosy pendant que vous lisez.')
-            .addFields(
-                { name: 'Radios', value: 'Allez dans `/menu` > Musique, ou tapez `/musique jouer`. Le bot rejoindra votre salon vocal et diffusera une radio 24/7 (Lofi Girl, Chillhop ou Jazz).' },
-                { name: 'Régler le son', value: 'Pour éviter de surcharger le bot, le volume ne se règle pas par commande. Faites un **clic droit** sur le bot dans le salon vocal et baissez son volume localement.' }
+                { name: 'L\'Overlay OBS (`/stream overlay`)', value: 'Vous donne des liens privés pour votre chrono et vos livres. Ajoutez-les en tant que "Source Navigateur" sur OBS.' },
+                { name: 'Livre Stream', value: 'Allez dans `/menu` > "Livre Stream" pour choisir le livre actuel qui s\'affichera sur votre lien global OBS.' },
+                { name: 'Annonces', value: '`/stream annonce` pour prévenir que vous êtes en live, avec un beau message formaté.' }
             );
     }
 
-    await interaction.update({ embeds: [embed] });
+    await interaction.update({ embeds: [embed], components: interaction.message.components });
 }

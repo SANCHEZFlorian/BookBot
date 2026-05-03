@@ -18,6 +18,7 @@
     "ffmpeg-static": "^5.2.0",
     "libsodium-wrappers": "^0.7.15",
     "mysql2": "^3.22.0",
+    "node-cron": "^4.2.1",
     "node-fetch": "^3.3.2",
     "play-dl": "^1.9.7"
   },

@@ -4,6 +4,7 @@ import { initDatabase } from './config/database.js';
 import { loadCommands } from './loader/commandLoader.js';
 import { loadEvents } from './loader/eventLoader.js';
 import { startOverlayServer } from './overlay/server.js';
+import { initCronJobs } from './services/cronService.js';
 
 dotenv.config();
 
@@ -33,7 +34,10 @@ async function startBot() {
         // 2. Démarrer le serveur de l'Overlay OBS
         startOverlayServer();
 
-        // 3. Charger les événements
+        // 3. Initialiser les tâches planifiées (Sync PAL)
+        initCronJobs();
+
+        // 4. Charger les événements
         await loadEvents(client);
 
         // 3. Charger les commandes

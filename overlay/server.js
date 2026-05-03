@@ -38,6 +38,33 @@ app.get('/api/overlay/book/:bookId', async (req, res) => {
     }
 });
 
+// --- API Livre Actuel (Dynamique) ---
+app.get('/api/overlay/current/:userId', async (req, res) => {
+    try {
+        const [books] = await db.query(
+            `SELECT title, author, cover_url, total_pages, current_page FROM books WHERE user_id = ? AND is_current = 1 LIMIT 1`,
+            [req.params.userId]
+        );
+
+        if (books.length === 0) return res.json({ error: 'Aucun livre en cours de stream' });
+
+        const book = books[0];
+        const percent = book.total_pages ? Math.floor((book.current_page / book.total_pages) * 100) : null;
+
+        res.json({
+            title: book.title,
+            author: book.author,
+            cover: book.cover_url,
+            currentPage: book.current_page,
+            totalPages: book.total_pages,
+            percent: percent
+        });
+    } catch (err) {
+        console.error('[API Current Book] Erreur:', err);
+        res.status(500).json({ error: 'Erreur serveur' });
+    }
+});
+
 // --- API Timer ---
 app.get('/api/overlay/timer/:userId', async (req, res) => {
     try {
@@ -72,6 +99,10 @@ app.get('/api/overlay/timer/:userId', async (req, res) => {
 
 // --- Routes HTML ---
 app.get('/overlay/book/:bookId', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'book.html'));
+});
+
+app.get('/overlay/current/:userId', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'book.html'));
 });
 

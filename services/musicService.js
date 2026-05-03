@@ -7,9 +7,12 @@ import {
     entersState,
     StreamType
 } from '@discordjs/voice';
-import play from 'play-dl';
+import ffmpegPath from 'ffmpeg-static';
 import fs from 'fs';
 import path from 'path';
+
+// Forcer discord.js à utiliser le ffmpeg fourni par npm
+process.env.FFMPEG_PATH = ffmpegPath;
 
 // Map pour stocker les lecteurs audio par serveur { guildId: { connection, player, currentRadio } }
 const guildPlayers = new Map();

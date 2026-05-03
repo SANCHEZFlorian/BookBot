@@ -27,10 +27,13 @@
         </div>
     </div>
     <script>
-        const BOOK_ID = window.location.pathname.split('/').pop();
+        const pathParts = window.location.pathname.split('/');
+        const ID = pathParts.pop();
+        const TYPE = pathParts.pop(); // 'book' or 'current'
+
         async function fetchBook() {
             try {
-                const res = await fetch(`/api/overlay/book/${BOOK_ID}`);
+                const res = await fetch(`/api/overlay/${TYPE}/${ID}`);
                 const data = await res.json();
                 if (data.error) return;
 

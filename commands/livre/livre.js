@@ -91,7 +91,7 @@ export async function handleSetStreamBook(interaction, isUpdate = false) {
     
     try {
         const [rows] = await db.query(
-            `SELECT id, title, author, is_current FROM books WHERE user_id = ? AND status IN ('to_read', 'reading') ORDER BY added_at DESC`,
+            `SELECT id, title, author, is_current FROM books WHERE user_id = ? AND status IN ('to_read', 'reading') ORDER BY added_at DESC LIMIT 25`,
             [interaction.user.id]
         );
 
