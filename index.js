@@ -3,8 +3,8 @@ import dns from 'dns';
 const originalLookup = dns.lookup;
 dns.lookup = (hostname, options, callback) => {
     if (typeof options === 'function') return originalLookup(hostname, { family: 4 }, options);
-    const opts = typeof options === 'number' ? { family: options } : { ...options };
-    if (!opts.family) opts.family = 4;
+    let opts = typeof options === 'number' ? { family: 4 } : { ...options };
+    opts.family = 4;
     return originalLookup(hostname, opts, callback);
 };
 
