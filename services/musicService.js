@@ -47,11 +47,30 @@ export async function playRadio(interaction, radioKey) {
     // Créer le lecteur audio
     const player = createAudioPlayer();
     
-    // Créer la ressource depuis le flux radio
-    const resource = createAudioResource(url, { inputType: StreamType.Arbitrary });
+    player.on('error', error => {
+        console.error(`[AudioPlayerError]`, error.message);
+    });
 
-    player.play(resource);
-    connection.subscribe(player);
+    player.on('stateChange', (oldState, newState) => {
+        console.log(`[AudioPlayer] Transition: ${oldState.status} -> ${newState.status}`);
+    });
+
+    connection.on('stateChange', (oldState, newState) => {
+        console.log(`[VoiceConnection] Transition: ${oldState.status} -> ${newState.status}`);
+    });
+
+    connection.on('error', error => {
+        console.error(`[VoiceConnectionError]`, error.message);
+    });
+
+    try {
+        // Créer la ressource depuis le flux radio
+        const resource = createAudioResource(url, { inputType: StreamType.Arbitrary });
+        player.play(resource);
+        connection.subscribe(player);
+    } catch (err) {
+        console.error(`[AudioResource Error] Impossible de créer ou jouer la ressource:`, err);
+    }
 
     // Stocker dans la map
     guildPlayers.set(channel.guild.id, {
